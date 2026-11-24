@@ -20,9 +20,22 @@ import subprocess
 import tempfile
 import urllib.request
 import uuid
+from datetime import datetime
 
 TIMEOUT = 20
 UA = "CrateUtils-Comfy/0.3"
+_FILL = re.compile(r"\{(time|trigger|run|file|event)\}")
+
+
+def fill(template: str, run: dict | None = None, now: datetime | None = None) -> str:
+    """Fill {time} {trigger} {run} {file} {event} in one pass (values are never re-scanned)."""
+    run = run or {}
+    vals = {"time": (now or datetime.now()).strftime("%Y-%m-%d %H:%M:%S"),
+            "trigger": run.get("title") or run.get("kind") or "manual",
+            "run": str(run.get("index", 0)),
+            "file": os.path.basename((run.get("paths") or [""])[0]),
+            "event": run.get("event") or "manual"}
+    return _FILL.sub(lambda m: vals[m.group(1)], template or "")
 
 
 def resolve(destinations: str, named: dict[str, str]) -> list[tuple[str, str]]:

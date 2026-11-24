@@ -96,6 +96,16 @@ class Pause(Base):
         self.m.tick()
         self.assertEqual(len(self.queued), 1)
 
+    def test_fire_now_runs_while_paused(self):
+        self.m.arm("k", "1", sched())
+        self.m.pause("k", True)
+        self.m.request_fire("k")  # uncounted test run
+        self.m.tick()
+        self.assertEqual(len(self.queued), 1)
+        self.assertEqual(triggers.read_run(self.queued[0], "1")["event"], "test")
+        self.assertTrue(self.m.list()[0]["paused"])
+        self.assertEqual(self.m.list()[0]["fired"], 0)
+
 
 class Webhook(Base):
     def test_calls_queue_with_payload_and_max_runs(self):
@@ -177,6 +187,25 @@ class Tracking(Base):
         self.assertIn("out of memory", self.sent[0][2])
         self.assertEqual(self.m.tracked, {})
 
+    def test_external_tracker_alerts_every_notify(self):
+        self.m.track_external("ext2", [{"destination": "toast"}, {"destination": "phone"}])
+        self.histories["ext2"] = hist("error", "boom")
+        self.clock.advance(5)
+        self.m.tick()
+        self.assertEqual([n[0]["destination"] for n in self.sent], ["toast", "phone"])
+
+    def test_csv_escapes_formula_cells(self):
+        self.m.arm("k", "1", sched(count=1), title='=HYPERLINK("x")')
+        self.m.tick()
+        self.histories["pid1"] = hist()
+        self.clock.advance(5)
+        self.m.tick()
+        with open(self.dir / "runs.csv", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual(rows[0]["title"], '\'=HYPERLINK("x")')
+        self.assertEqual(triggers.csv_cell("-2"), "'-2")
+        self.assertEqual(triggers.csv_cell("plain"), "plain")
+
     def test_lost_run_marked_cancelled(self):
         self.m.arm("k", "1", sched(count=1))
         self.m.tick()
@@ -205,7 +234,33 @@ class Tracking(Base):
         self.assertEqual(triggers.summarize_history(h)["status"], "interrupted")
 
 
+class FailureNotifies(unittest.TestCase):
+    def test_linked_destination_and_every_notify_node(self):
+        prompt = {
+            "1": {"class_type": "CUCNotify", "inputs": {"on_failure": True, "destination": ["4", 0],
+                                                          "failure_message": ["5", 0]}},
+            "2": {"class_type": "CUCNotify", "inputs": {"on_failure": True, "destination": "toast",
+                                                          "title": "Done"}},
+            "3": {"class_type": "CUCNotify", "inputs": {"on_failure": False, "destination": "toast"}},
+            "4": {"class_type": "PrimitiveNode", "inputs": {"value": "phone"}},
+            "5": {"class_type": "PrimitiveNode", "inputs": {"value": "oops"}},
+        }
+        out = triggers.failure_notifies(prompt)
+        self.assertEqual([n["destination"] for n in out], ["phone", "toast"])
+        self.assertEqual(out[0]["failure_message"], "oops")
+        self.assertEqual(out[1]["title"], "ComfyUI: run failed (Done)")
+
+    def test_unreadable_link_is_skipped(self):
+        prompt = {"1": {"class_type": "CUCNotify", "inputs": {"on_failure": True, "destination": ["9", 0]}}}
+        self.assertEqual(triggers.failure_notifies(prompt), [])
+
+
 class NotifyRouting(unittest.TestCase):
+    def test_fill_does_not_rescan_values(self):
+        run = {"title": "{file}", "index": 2, "paths": ["C:/x/a.png"], "event": "added"}
+        self.assertEqual(notify.fill("{trigger} {run} {file}", run), "{file} 2 a.png")
+        self.assertEqual(notify.fill("{unknown} {event}", run), "{unknown} added")
+
     def test_resolve(self):
         named = {"phone": "https://ntfy.sh/x", "team": "https://discord.com/api/webhooks/1/abc"}
         self.assertEqual(notify.resolve("toast, phone,team", named),
@@ -251,6 +306,10 @@ class CopyMove(unittest.TestCase):
             fileops.copy_or_move([a], d / "done", "move", "overwrite")
             self.assertFalse(a.exists())
             self.assertTrue((d / "done" / "a.png").exists())
+            with self.assertRaises(ValueError):
+                fileops.copy_or_move([a], d / "dst", "teleport", "skip")
+            with self.assertRaises(ValueError):
+                fileops.copy_or_move([a], d / "dst", "copy", "replace")
 
 
 @unittest.skipUnless(shutil.which("ffmpeg") or os.environ.get("CRATEUTILS_COMFY_FFMPEG"), "ffmpeg not installed")

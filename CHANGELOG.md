@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.2 (2026-11-24)
+
+Fixes from the 2026-11-24 review (64 tests, up from 55):
+
+- Export File: quality presets now reset `max_kb` too, so "max quality" / "balanced" / "small"
+  produce a deterministic result after a custom size limit. `%batch_num%` no longer restarts
+  the counter at 1 on a second batch (which could overwrite the first); it must be in the
+  file name, not a folder name.
+- Notify: templates fill `{time}` / `{trigger}` / `{run}` / `{file}` / `{event}` in one pass,
+  so a value that itself contains a token is left alone. Failure alerts now also work when
+  `destination` is linked, and every Notify node with `on_failure` gets an alert (not just
+  the first).
+- Triggers: **Fire now** runs immediately even while the trigger is paused. The CSV run log
+  escapes cells starting with `=`, `+`, `-` or `@` so a title or path can't be run as a
+  spreadsheet formula.
+- Copy / Move Files: unknown `mode` / `if_exists` values are refused instead of silently
+  overwriting.
+- Trigger Manager panel: only rebuilds when the data changed, and keeps its scroll position
+  when it does (it used to rebuild every 3 s).
+- Docs: `paths.py` no longer claims ComfyUI's user folder is allowed by default.
+- The animation `loop` semantics are now tested: GIF stores n-1 (omitted for once), APNG and
+  WebP store n (0 = forever), per RFC 9649; no code change was needed.
+
 ## 0.3.1 (2026-11-24)
 
 - Triggered runs now call before-queue hooks that other packs register in

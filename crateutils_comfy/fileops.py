@@ -26,6 +26,10 @@ def copy_or_move(sources: list, dest_dir, mode: str, if_exists: str) -> tuple[li
     import shutil
     from pathlib import Path
 
+    if mode not in ("copy", "move"):
+        raise ValueError(f"mode must be 'copy' or 'move', not {mode!r}")
+    if if_exists not in IF_EXISTS:
+        raise ValueError(f"if_exists must be one of {', '.join(IF_EXISTS)}, not {if_exists!r}")
     new, lines = [], []
     Path(dest_dir).mkdir(parents=True, exist_ok=True)
     for src in sources:

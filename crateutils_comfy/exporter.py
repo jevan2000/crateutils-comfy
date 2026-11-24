@@ -119,13 +119,13 @@ def apply_preset(s: Settings, preset: str) -> Settings:
         "lossless": dict(quality=100, lossless=True, compression=9, effort=80, subsampling="4:4:4", bit_depth=deep,
                          max_kb=0),
         "max quality": dict(quality=100, lossless=False, compression=9, effort=80, subsampling="4:4:4",
-                            bit_depth=deep),
+                            bit_depth=deep, max_kb=0),
         "high": dict(quality=92, lossless=False, compression=6, effort=60, subsampling="4:4:4", bit_depth="8"
-                     if s.fmt != "exr (float)" else "16 float"),
+                     if s.fmt != "exr (float)" else "16 float", max_kb=0),
         "balanced": dict(quality=82, lossless=False, compression=6, effort=60, subsampling="auto", bit_depth="8"
-                         if s.fmt != "exr (float)" else "16 float"),
+                         if s.fmt != "exr (float)" else "16 float", max_kb=0),
         "small": dict(quality=65, lossless=False, compression=9, effort=100, subsampling="4:2:0", bit_depth="8"
-                      if s.fmt != "exr (float)" else "16 float"),
+                      if s.fmt != "exr (float)" else "16 float", max_kb=0),
     }
     if preset not in table:
         raise ValueError(f"unknown preset {preset!r}")
@@ -653,6 +653,35 @@ def save_audio(waveforms: list[np.ndarray], sample_rate: int, s: Settings,
         detail = write_audio(wf, sample_rate, s, p)
         out.append(Result(p, os.path.getsize(p), 0, 0, 1, detail))
     return out
+
+
+# ----------------------------------------------------------------- names
+BATCH_MARKER = "__CUC_BATCH_NUM__"
+
+
+def batch_plan(filename_prefix: str, base_dir: str, width: int, height: int, save_path: Callable):
+    """(out_dir, base, counter, subfolder, has_batch) for one export.
+
+    ComfyUI's save-path helper cannot count files whose names had %batch_num% replaced,
+    so count with "0" there and build the names from BATCH_MARKER instead. Without the
+    token this is just a pass-through.
+    """
+    has_batch = "%batch_num%" in filename_prefix
+    head, tail = os.path.split(filename_prefix)
+    if "%batch_num%" in head:
+        raise ValueError("%batch_num% must be in the file name, not a folder name")
+    scan_prefix = os.path.join(head, tail.replace("%batch_num%", "0")) if has_batch else filename_prefix
+    out_dir, base, counter, subfolder, _ = save_path(scan_prefix, base_dir, width, height)
+    if has_batch:
+        _, tmpl_base, _, _, _ = save_path(os.path.join(head, tail.replace("%batch_num%", BATCH_MARKER)),
+                                          base_dir, width, height)
+        if tmpl_base.replace(BATCH_MARKER, "0") == base:
+            base = tmpl_base
+    return out_dir, base, counter, subfolder, has_batch
+
+
+def batch_name(base: str, i: int, has_batch: bool) -> str:
+    return base.replace(BATCH_MARKER, str(i)) if has_batch else base
 
 
 # ----------------------------------------------------------------- one call for everything

@@ -60,8 +60,8 @@ class CUCExport(IO.ComfyNode):
                 IO.Combo.Input("format", options=list(ex.FORMATS), default="png"),
                 IO.Combo.Input("preset", options=ex.PRESETS, default="high", tooltip=PRESET_TIP),
                 IO.String.Input("filename_prefix", default="CrateUtils-Comfy/export",
-                                tooltip="Like Save Image: a/b makes a subfolder; %date:yyyy-MM-dd% and "
-                                        "%width%/%height% work"),
+                                tooltip="Like Save Image: a/b makes a subfolder; %width%/%height%, "
+                                        "%year%-%month%-%day% and %batch_num% (the file's index in a batch) work"),
                 IO.Mask.Input("mask", optional=True, tooltip="Transparency for the image"),
                 IO.Combo.Input("mask_meaning", options=MASK_MEANINGS, default=MASK_MEANINGS[0], optional=True,
                                tooltip="Load Image's mask is 1 = transparent; most others are 1 = opaque"),
@@ -144,11 +144,14 @@ class CUCExport(IO.ComfyNode):
         out_root = folder_paths.get_output_directory()
         base_dir = str(comfy_glue.check_write_folder(folder)) if folder.strip() else out_root
         os.makedirs(base_dir, exist_ok=True)
-        out_dir, base, counter, subfolder, _ = folder_paths.get_save_image_path(filename_prefix, base_dir, w, h)
+        # %batch_num% is replaced per file; batch_plan keeps ComfyUI's counter moving.
+        out_dir, base, counter, subfolder, has_batch = ex.batch_plan(
+            filename_prefix, base_dir, w, h, folder_paths.get_save_image_path)
         os.makedirs(out_dir, exist_ok=True)
 
         def path_for(i, ext):
-            return os.path.join(out_dir, f"{base.replace('%batch_num%', str(i))}_{counter + i:05}_{ext}")
+            name = ex.batch_name(base, i, has_batch)
+            return os.path.join(out_dir, f"{name}_{counter + i:05}_{ext}")
 
         aud = None
         if audio is not None and fmt.kind == "video":

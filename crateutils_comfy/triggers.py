@@ -48,6 +48,12 @@ LOG_COLUMNS = ["fired_at", "trigger", "title", "kind", "run_index", "event", "in
                "duration_s", "outputs", "error"]
 
 
+def csv_cell(value) -> str:
+    """A CSV cell that Excel/LibreOffice won't run as a formula."""
+    s = "" if value is None else str(value)
+    return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
+
+
 @dataclass
 class Trigger:
     key: str
@@ -124,6 +130,52 @@ def find_run(prompt: dict | None) -> dict | None:
         if r:
             return r
     return None
+
+
+def resolve_text(prompt: dict | None, value) -> str:
+    """A string input, or the literal behind a link (e.g. a PrimitiveNode's value)."""
+    if isinstance(value, str):
+        return value
+    if not (isinstance(value, list) and value):
+        return ""
+    src = (prompt or {}).get(str(value[0]))
+    if not isinstance(src, dict):
+        return ""
+    ins = src.get("inputs") or {}
+    for k in ("value", "string", "text", "destination", "title", "message"):
+        v = ins.get(k)
+        if isinstance(v, str) and v.strip():
+            return v
+    vals = [v for v in ins.values() if isinstance(v, str) and v.strip()]
+    return vals[0] if len(vals) == 1 else ""
+
+
+def failure_notifies(prompt: dict | None) -> list[dict]:
+    """Every Notify node set to report failures, for the on-prompt failure hook.
+
+    A linked destination is resolved to its literal value, so it works as well as
+    a typed one. Several Notify nodes each get their own alert.
+    """
+    run = find_run(prompt)
+    run_text = f"{run.get('title') or run.get('kind')} run {run.get('index')}" if run else ""
+    out = []
+    for nid, node in (prompt or {}).items():
+        if not isinstance(node, dict) or node.get("class_type") != "CUCNotify":
+            continue
+        ins = node.get("inputs") or {}
+        if ins.get("on_failure") is not True:
+            continue
+        dest = resolve_text(prompt, ins.get("destination", ""))
+        if not dest:
+            log.warning("CrateUtils-Comfy: Notify %s has a linked destination that can't be read; "
+                        "its failure alert is off", nid)
+            continue
+        title = resolve_text(prompt, ins.get("title", ""))
+        out.append({"destination": dest,
+                    "title": f"ComfyUI: run failed ({title})" if title else "",
+                    "failure_message": resolve_text(prompt, ins.get("failure_message", "")),
+                    "run": run_text})
+    return out
 
 
 def reroll_seeds(prompt: dict, rng: random.Random, skip: str = "") -> int:
@@ -286,11 +338,11 @@ class Manager:
                     return t
         return None
 
-    def track_external(self, prompt_id: str, notify: dict) -> None:
+    def track_external(self, prompt_id: str, notify: dict | list[dict]) -> None:
         """Watch a run queued by someone else (a workflow with a Notify node set to report failures)."""
         with self.lock:
             entry = self.tracked.setdefault(prompt_id, {"since": self.mono(), "fired_at": None})
-            entry["notify"] = notify
+            entry.setdefault("notifies", []).extend(notify if isinstance(notify, list) else [notify])
 
     # ----- runtime ------------------------------------------------------------------
     def _build(self, t: Trigger, fresh: bool) -> None:
@@ -385,6 +437,13 @@ class Manager:
             return False
         changed = False
         paused = t.state.get("paused")
+        if paused:  # Fire now is an explicit test run, so it still runs while paused
+            tests = [e for e in t.inbox if e.get("event") == "test"]
+            if tests:
+                t.inbox[:] = [e for e in t.inbox if e.get("event") != "test"]
+                for info in tests:
+                    self._fire(t, info, count=False)
+                changed = True
         while t.inbox and not paused:
             info = t.inbox[0]
             if info.get("event") == "test":
@@ -569,11 +628,12 @@ class Manager:
                     if res["error"]:
                         rec["error"] = res["error"][:300]
             self._log_row(t, entry, pid, res["status"], res["duration"], res["outputs"], res["error"])
-        if entry.get("notify") and res["status"] in ("error", "interrupted") and self.notify_fn:
-            try:
-                self.notify_fn(entry["notify"], pid, res["error"] or res["status"])
-            except Exception as e:
-                log.warning("CrateUtils-Comfy: failure notification for %s not sent: %s", pid, e)
+        if entry.get("notifies") and res["status"] in ("error", "interrupted") and self.notify_fn:
+            for notify in entry["notifies"]:
+                try:
+                    self.notify_fn(notify, pid, res["error"] or res["status"])
+                except Exception as e:
+                    log.warning("CrateUtils-Comfy: failure notification for %s not sent: %s", pid, e)
 
     def _log_row(self, t: Trigger, entry: dict, pid: str, status: str, dur, outputs: list, error: str) -> None:
         if not self.log_path:
@@ -588,7 +648,7 @@ class Manager:
                 w = csv.writer(f)
                 if new:
                     w.writerow(LOG_COLUMNS)
-                w.writerow(row)
+                w.writerow([csv_cell(v) for v in row])
         except OSError as e:
             log.warning("CrateUtils-Comfy: can't write the run log %s: %s", self.log_path, e)
 

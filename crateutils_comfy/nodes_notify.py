@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import tempfile
 import time
-from datetime import datetime
 
 import numpy as np
 from comfy_api.latest import IO, UI
@@ -15,19 +14,6 @@ from .nodes_triggers import ROOT
 
 CAT = f"{ROOT}/Notify"
 PRIORITIES = ["default", "low", "high", "urgent"]
-
-
-def fill(template: str, run: dict | None) -> str:
-    run = run or {}
-    vals = {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "trigger": run.get("title") or run.get("kind") or "manual",
-            "run": str(run.get("index", 0)),
-            "file": os.path.basename((run.get("paths") or [""])[0]),
-            "event": run.get("event") or "manual"}
-    out = template or ""
-    for k, v in vals.items():
-        out = out.replace("{" + k + "}", v)
-    return out
 
 
 class CUCNotify(IO.ComfyNode):
@@ -74,7 +60,7 @@ class CUCNotify(IO.ComfyNode):
 
         run = triggers.find_run(cls.hidden.prompt)
         dests = notify.resolve(destination, comfy_glue.named_destinations())
-        text = fill(message, run)
+        text = notify.fill(message, run)
         png, path, tmpdir = None, None, None
         if images is not None and len(images):
             arr = np.round(np.clip(images[0].detach().cpu().float().numpy()[..., :3], 0, 1) * 255).astype(np.uint8)
@@ -85,7 +71,7 @@ class CUCNotify(IO.ComfyNode):
                 with open(path, "wb") as f:
                     f.write(png)
         try:
-            lines = notify.send(dests, fill(title, run), text, png, path, priority)
+            lines = notify.send(dests, notify.fill(title, run), text, png, path, priority)
         finally:
             if tmpdir:
                 # Windows reads the toast picture after the call returns; leave it a moment, then tidy up

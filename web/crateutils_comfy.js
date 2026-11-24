@@ -205,6 +205,12 @@ function card(t) {
 }
 
 function renderPanel(root) {
+  // Rebuilding the whole panel every poll steals scroll, selection and focus; only do it
+  // when the data actually changed, and keep the scroll position when it does.
+  const sig = JSON.stringify(latest);
+  if (root.dataset.cusig === sig) return;
+  root.dataset.cusig = sig;
+  const top = root.scrollTop;
   const open = new Set([...root.querySelectorAll("details[open]")].map((d) => d.closest("[data-key]")?.dataset.key));
   root.replaceChildren(
     h("div", { style: { padding: "8px" } },
@@ -219,6 +225,7 @@ function renderPanel(root) {
         : h("p", { style: S.dim }, "Nothing armed. Add a Task Scheduler, Folder Watcher, File Watcher, Webhook "
             + "Trigger or Folder Batch node and press its Arm / Start button.")));
   for (const k of open) root.querySelector(`[data-key="${CSS.escape(k)}"] details`)?.setAttribute("open", "");
+  root.scrollTop = top;
 }
 
 app.registerExtension({

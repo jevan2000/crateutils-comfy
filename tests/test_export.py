@@ -143,6 +143,55 @@ class Formats(unittest.TestCase):
                 with Image.open(r[0].path) as im:
                     self.assertEqual(getattr(im, "n_frames", 1), 3)
 
+    def test_animation_loop_counts(self):
+        # loop=n means "play n times": GIF stores n-1 (or omits it for once),
+        # APNG and WebP store n directly (0 = forever).
+        frames = [gradient(), np.roll(gradient(), 8, axis=1)]
+        cases = {
+            "gif (animated)": {0: 0, 1: None, 2: 1, 3: 2},
+            "apng (animated png)": {0: 0, 1: 1, 2: 2, 3: 3},
+            "webp (animated)": {0: 0, 1: 1, 2: 2, 3: 3},
+        }
+        for fmt, wanted in cases.items():
+            for n, stored in wanted.items():
+                with self.subTest(fmt=fmt, loop=n):
+                    r = self.save(frames, fmt=fmt, loop=n)
+                    with Image.open(r[0].path) as im:
+                        self.assertEqual(im.info.get("loop"), stored)
+
+    def test_presets_reset_max_kb_but_custom_keeps_it(self):
+        s = ex.Settings(fmt="jpeg", max_kb=500)
+        for preset in ("max quality", "high", "balanced", "small", "lossless"):
+            with self.subTest(preset=preset):
+                self.assertEqual(ex.apply_preset(s, preset).max_kb, 0)
+        self.assertEqual(ex.apply_preset(s, "custom").max_kb, 500)
+
+    def test_batch_num_keeps_the_counter_moving(self):
+        def save_path(prefix, base_dir, width, height):
+            sub = os.path.dirname(os.path.normpath(prefix))
+            base = os.path.basename(os.path.normpath(prefix))
+            folder = os.path.join(base_dir, sub)
+            os.makedirs(folder, exist_ok=True)
+            counter = 1
+            for name in os.listdir(folder):
+                if name.startswith(base + "_"):
+                    digits = [p for p in os.path.splitext(name)[0].split("_") if p.isdigit()]
+                    if digits:
+                        counter = max(counter, int(digits[-1]) + 1)
+            return folder, base, counter, sub, prefix
+
+        with tempfile.TemporaryDirectory() as d:
+            for run in range(3):
+                with self.subTest(run=run):
+                    out, base, counter, _, has = ex.batch_plan("shots/%batch_num%", d, 8, 8, save_path)
+                    self.assertTrue(has)
+                    for i in range(2):
+                        p = Path(out) / f"{ex.batch_name(base, i, has)}_{counter + i:05}_.png"
+                        self.assertFalse(p.exists(), f"run {run} would overwrite {p.name}")
+                        p.write_bytes(b"x")
+            with self.assertRaises(ValueError):
+                ex.batch_plan("shots/%batch_num%/x", d, 8, 8, save_path)
+
     def test_mixed_sizes_refused_for_animation(self):
         with self.assertRaises(ValueError):
             self.save([gradient(), gradient(32, 32)], fmt="gif (animated)")

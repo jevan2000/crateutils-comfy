@@ -1,7 +1,7 @@
 """Which folders a workflow may read, watch or write.
 
 A workflow is a file anyone can share, so its paths are checked: by default only
-ComfyUI's input, output, temp and user folders are allowed. More folders can be
+ComfyUI's input, output and temp folders are allowed. More folders can be
 added in ``<ComfyUI user folder>/crateutils-comfy/config.json``::
 
     {"allowed_folders": ["D:/Renders", "S:/Shared/Inbox"]}

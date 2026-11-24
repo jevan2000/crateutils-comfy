@@ -165,21 +165,11 @@ def on_prompt(json_data: dict) -> dict:
     """Track runs whose workflow has a Notify node set to report failures (it can't run itself then)."""
     try:
         prompt = json_data.get("prompt") or {}
-        for nid, node in prompt.items():
-            if not isinstance(node, dict) or node.get("class_type") != "CUCNotify":
-                continue
-            ins = node.get("inputs", {})
-            if ins.get("on_failure") is not True or isinstance(ins.get("destination"), list):
-                continue
+        notifies = triggers.failure_notifies(prompt)
+        if notifies:
             if not json_data.get("prompt_id"):
                 json_data["prompt_id"] = str(uuid.uuid4())
-            run = triggers.find_run(prompt)
-            manager().track_external(json_data["prompt_id"], {
-                "destination": ins.get("destination", ""),
-                "title": f"ComfyUI: run failed ({ins.get('title')})" if ins.get("title") else "",
-                "failure_message": ins.get("failure_message", "") if isinstance(ins.get("failure_message"), str) else "",
-                "run": f"{run.get('title') or run.get('kind')} run {run.get('index')}" if run else ""})
-            break
+            manager().track_external(json_data["prompt_id"], notifies)
     except Exception as e:  # never block a prompt over this
         log.warning("CrateUtils-Comfy: on_prompt: %s", e)
     return json_data
