@@ -1,7 +1,7 @@
 [project]
 name = "crateutils-comfy"
 description = "CrateUtils-Comfy for ComfyUI: a task scheduler, folder and file watchers that run your workflow on their own, and an Export File node for PNG/16-bit, JPEG, WebP, AVIF, TIFF, EXR, GIF/APNG, PDF and video."
-version = "0.3.0"
+version = "0.3.1"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = ["numpy", "pillow>=10"]

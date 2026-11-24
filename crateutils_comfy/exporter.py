@@ -574,10 +574,15 @@ def write_video(frames: list[np.ndarray], s: Settings, path: str, audio: tuple |
             for fr in frames:
                 px = fr if alpha else flatten(fr, s.matte)
                 p.stdin.write(np.round(np.clip(px, 0, 1) * 255).astype(np.uint8).tobytes())
-            p.stdin.close()
         except BrokenPipeError:
             pass
+        finally:
+            try:
+                p.stdin.close()
+            except OSError:
+                pass
         err = p.stderr.read().decode("utf-8", "replace")
+        p.stderr.close()
         if p.wait() != 0:
             raise RuntimeError(f"ffmpeg failed for {s.fmt}: {err.strip()[-800:]}")
     return f"{detail}, {s.fps:g} fps" + (", with audio" if audio is not None else "")

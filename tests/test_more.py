@@ -161,7 +161,8 @@ class Tracking(Base):
         self.m.tick()
         run = self.m.list()[0]["runs"][0]
         self.assertEqual((run["status"], run["duration"], run["outputs"]), ("success", 2.5, ["out/a.png"]))
-        rows = list(csv.DictReader(open(self.dir / "runs.csv", encoding="utf-8")))
+        with open(self.dir / "runs.csv", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
         self.assertEqual(rows[0]["title"], "Hourly")
         self.assertEqual(rows[0]["status"], "success")
         self.assertEqual(rows[0]["duration_s"], "2.5")
@@ -194,7 +195,8 @@ class Tracking(Base):
                              log_path=self.dir / "runs.csv")
         m.arm("k", "1", sched(count=1))
         m.tick()
-        rows = list(csv.DictReader(open(self.dir / "runs.csv", encoding="utf-8")))
+        with open(self.dir / "runs.csv", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
         self.assertEqual((rows[0]["status"], rows[0]["error"]), ("not queued", "bad node"))
 
     def test_summarize_interrupted(self):
@@ -282,7 +284,8 @@ class Audio(unittest.TestCase):
             w = (np.arange(1000, dtype=np.float32)[None] % 200 - 100) / 128
             p = os.path.join(d, "x.wav")
             ex.write_audio(w, 8000, ex.Settings(fmt="wav (audio)", bit_depth="32 float"), p)
-            data = open(p, "rb").read()
+            with open(p, "rb") as f:
+                data = f.read()
             pcm = np.frombuffer(data[data.index(b"data") + 8:], "<f4")
             self.assertTrue(np.array_equal(pcm, w[0]))
 
