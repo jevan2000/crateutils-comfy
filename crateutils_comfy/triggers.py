@@ -139,6 +139,28 @@ def reroll_seeds(prompt: dict, rng: random.Random, skip: str = "") -> int:
     return n
 
 
+BEFORE_QUEUE = "crate_before_queue"  # sys.modules registry other packs add hooks to
+
+
+def run_before_queue(prompt: dict, rng: random.Random) -> int:
+    """Let other packs refresh a prompt before a triggered run queues it.
+
+    The browser gives some nodes new values just before each queued run (CrateNode-Comfy's
+    Palette Generator new_each_run and Fluid Gradient randomize). Triggered runs skip the
+    browser, so those packs offer the same work as ``fn(prompt, rng) -> int`` in
+    ``sys.modules["crate_before_queue"].hooks``. A failing hook is logged and skipped.
+    """
+    import sys
+
+    n = 0
+    for fn in list(getattr(sys.modules.get(BEFORE_QUEUE), "hooks", None) or []):
+        try:
+            n += int(fn(prompt, rng) or 0)
+        except Exception as e:  # another pack's problem must never stop the run
+            log.warning("CrateUtils-Comfy: a before-queue hook failed: %s", e)
+    return n
+
+
 def summarize_history(entry: dict) -> dict:
     """status / duration / outputs / error from a ComfyUI /history entry."""
     st = entry.get("status") or {}
@@ -489,7 +511,8 @@ class Manager:
         prompt[t.node_id].setdefault("inputs", {})[RUN_KEY] = json.dumps(run)
         if t.settings.get("new_seeds"):
             reroll_seeds(prompt, self.rng, skip=t.node_id)
-        rec = {"time": run["time"], "index": index, "event": info.get("event"),
+        run_before_queue(prompt, self.rng)  # new palettes / looks where the nodes ask for them
+        rec ={"time": run["time"], "index": index, "event": info.get("event"),
                "paths": info.get("paths", [])[:5], "status": "queued"}
         try:
             pid = self.queue_fn(prompt, t.extra_pnginfo)

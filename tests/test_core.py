@@ -166,6 +166,31 @@ class ManagerSchedule(unittest.TestCase):
         m.tick()
         self.assertEqual(len(self.queued), 1)
 
+    def test_before_queue_hooks(self):
+        import types
+
+        reg = sys.modules.setdefault(triggers.BEFORE_QUEUE, types.ModuleType(triggers.BEFORE_QUEUE))
+        saved = list(getattr(reg, "hooks", []))
+
+        def paint(prompt, rng):  # stands in for CrateNode's palette refresher
+            prompt["2"]["inputs"]["color"] = f"#{rng.randrange(16**6):06x}"
+            return 1
+
+        def broken(prompt, rng):
+            raise RuntimeError("bad hook")
+
+        reg.hooks = [broken, paint]
+        try:
+            self.m.arm("k", "1", self.sched(count=3, new_seeds=False))
+            for _ in range(10):
+                self.m.tick()
+                self.clock.advance(30)
+        finally:
+            reg.hooks = saved
+        self.assertEqual(len(self.queued), 3)  # a failing hook never stops the run
+        self.assertEqual(len({p["2"]["inputs"]["color"] for p in self.queued}), 3)  # even without new_seeds
+        self.assertNotIn("color", self.m.triggers["k"].prompt["2"]["inputs"])  # stored copy untouched
+
     def test_persistence(self):
         with tempfile.TemporaryDirectory() as d:
             store = Path(d) / "t.json"

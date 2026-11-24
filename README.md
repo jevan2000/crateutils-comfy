@@ -60,6 +60,11 @@ identical workflow queued again does nothing. The trigger nodes always run, so a
 to them runs again; with `new_seeds` on (the scheduler's default), every `seed` / `noise_seed`
 in the workflow also gets a new random value on each run.
 
+With [CrateNode-Comfy](https://github.com/jevan2000/cratenode-comfy) installed, every triggered
+run (whatever `new_seeds` is set to) also gets a new set of colours from each Palette Generator
+with `new_each_run` on, and a new look from each Fluid Gradient with `randomize` on, as a run
+from the browser would. Locked generators and inputs fed by a link are left alone.
+
 ### Task Scheduler settings
 
 - `start`: `now`, `in 10 minutes`, `14:30` (today, or tomorrow if that time has passed),

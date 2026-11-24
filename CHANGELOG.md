@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Triggered runs now call before-queue hooks that other packs register in
+  `sys.modules["crate_before_queue"].hooks` (`fn(prompt, rng) -> int`), on every run
+  whatever `new_seeds` is set to. A failing hook is logged and skipped. CrateNode-Comfy
+  uses it so Palette Generator (`new_each_run`) and Fluid Gradient (`randomize`) make new
+  colours and looks on triggered runs, as they do when run from the browser.
+
 ## 0.3.0 (2026-11-23)
 
 Every internal name now matches CrateUtils-Comfy as well (breaking, before any real use):
