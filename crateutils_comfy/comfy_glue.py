@@ -23,7 +23,7 @@ MAX_HOOK_BODY = 1024 * 1024
 def user_dir() -> Path:
     import folder_paths
 
-    return Path(folder_paths.get_user_directory()) / "crateutils"
+    return Path(folder_paths.get_user_directory()) / "crateutils-comfy"
 
 
 def config() -> dict:
@@ -97,7 +97,7 @@ def queue_prompt(prompt: dict, extra_pnginfo: dict | None) -> str:
     the prompt id, so the run can be tracked even if the reply is lost."""
     base, ctx = _base_url()
     pid = str(uuid.uuid4())
-    body = {"prompt": prompt, "prompt_id": pid, "client_id": "crateutils-" + uuid.uuid4().hex[:8], "extra_data": {}}
+    body = {"prompt": prompt, "prompt_id": pid, "client_id": "crateutils-comfy-" + uuid.uuid4().hex[:8], "extra_data": {}}
     if extra_pnginfo:
         body["extra_data"]["extra_pnginfo"] = extra_pnginfo
     req = urllib.request.Request(base + "/prompt", data=json.dumps(body).encode(), method="POST",
@@ -166,7 +166,7 @@ def on_prompt(json_data: dict) -> dict:
     try:
         prompt = json_data.get("prompt") or {}
         for nid, node in prompt.items():
-            if not isinstance(node, dict) or node.get("class_type") != "CUNotify":
+            if not isinstance(node, dict) or node.get("class_type") != "CUCNotify":
                 continue
             ins = node.get("inputs", {})
             if ins.get("on_failure") is not True or isinstance(ins.get("destination"), list):
@@ -199,11 +199,11 @@ def add_routes() -> None:
     def err(e, status=400):
         return web.json_response({"error": str(e)}, status=status)
 
-    @r.get("/crateutils/triggers")
+    @r.get("/crateutils-comfy/triggers")
     async def list_triggers(request):
         return web.json_response({"triggers": manager().list()})
 
-    @r.post("/crateutils/triggers")
+    @r.post("/crateutils-comfy/triggers")
     async def arm(request):
         try:
             d = await request.json()
@@ -218,38 +218,38 @@ def add_routes() -> None:
         except Exception as e:
             return err(e)
 
-    @r.post("/crateutils/triggers/disarm")
+    @r.post("/crateutils-comfy/triggers/disarm")
     async def disarm(request):
         d = await request.json()
         if d.get("all"):
             return web.json_response({"disarmed": manager().disarm_all()})
         return web.json_response({"disarmed": int(manager().disarm(str(d.get("key", ""))))})
 
-    @r.post("/crateutils/triggers/pause")
+    @r.post("/crateutils-comfy/triggers/pause")
     async def pause(request):
         d = await request.json()
         ok = manager().pause(str(d.get("key", "")), bool(d.get("paused", True)))
         return web.json_response({"ok": ok}, status=200 if ok else 404)
 
-    @r.post("/crateutils/triggers/fire")
+    @r.post("/crateutils-comfy/triggers/fire")
     async def fire(request):
         d = await request.json()
         ok = manager().request_fire(str(d.get("key", "")))
         return web.json_response({"ok": ok}, status=200 if ok else 404)
 
-    @r.get("/crateutils/runs.csv")
+    @r.get("/crateutils-comfy/runs.csv")
     async def runs_csv(request):
         f = user_dir() / "runs.csv"
         if not f.is_file():
             return web.Response(text=",".join(triggers.LOG_COLUMNS) + "\n", content_type="text/csv")
-        return web.FileResponse(f, headers={"Content-Disposition": 'attachment; filename="crateutils-runs.csv"'})
+        return web.FileResponse(f, headers={"Content-Disposition": 'attachment; filename="crateutils-comfy-runs.csv"'})
 
     async def hook(request):
         t = manager().find_hook(request.match_info["hook_id"])
         if t is None:
             return err("unknown webhook (is it armed?)", 404)
         auth = request.headers.get("Authorization", "")
-        token = (request.headers.get("X-CrateUtils-Token") or request.query.get("token")
+        token = (request.headers.get("X-CrateUtils-Comfy-Token") or request.query.get("token")
                  or (auth[7:] if auth.lower().startswith("bearer ") else ""))
         if not token or not hmac.compare_digest(token, t.state.get("token", "")):
             return err("wrong or missing token", 403)
@@ -282,8 +282,8 @@ def add_routes() -> None:
             return err(e, 429)
         return web.json_response({"queued": True, "trigger": t.title or t.key}, status=202)
 
-    r.get("/crateutils/hook/{hook_id}")(hook)
-    r.post("/crateutils/hook/{hook_id}")(hook)
+    r.get("/crateutils-comfy/hook/{hook_id}")(hook)
+    r.post("/crateutils-comfy/hook/{hook_id}")(hook)
 
 
 async def _validate(prompt: dict) -> None:

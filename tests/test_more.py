@@ -20,8 +20,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from crateutils import exporter as ex  # noqa: E402
-from crateutils import fileops, notify, triggers  # noqa: E402
+from crateutils_comfy import exporter as ex  # noqa: E402
+from crateutils_comfy import fileops, notify, triggers  # noqa: E402
 from test_core import Clock, wf  # noqa: E402
 
 
@@ -29,7 +29,7 @@ def sched(**kw):
     base = dict(start="now", every=1.0, unit="minutes", count=0, days="", end="", missed="skip missed runs",
                 new_seeds=True)
     base.update(kw)
-    return wf("CUScheduler", **base)
+    return wf("CUCScheduler", **base)
 
 
 def hist(status="success", error=None, start=1000, end=3500, files=("a.png",)):
@@ -80,7 +80,7 @@ class Pause(Base):
         self.assertEqual(len(self.queued), 2)
 
     def test_paused_watcher_drops_changes(self):
-        p = wf("CUFolderWatcher", folder=str(self.dir), patterns="*.png", recursive=False, events="added",
+        p = wf("CUCFolderWatcher", folder=str(self.dir), patterns="*.png", recursive=False, events="added",
                settle=0.0, poll=1.0, max_runs=0, run_mode=triggers.RUN_MODES[0])
         self.m.arm("w", "1", p)
         self.m.pause("w", True)
@@ -99,7 +99,7 @@ class Pause(Base):
 
 class Webhook(Base):
     def test_calls_queue_with_payload_and_max_runs(self):
-        st = self.m.arm("h", "1", wf("CUWebhook", max_runs=2))
+        st = self.m.arm("h", "1", wf("CUCWebhook", max_runs=2))
         self.assertEqual(len(st["token"]), 32)
         hook_id = st["hook_path"].rsplit("/", 1)[1]
         self.assertIs(self.m.find_hook(hook_id).key, "h")
@@ -112,8 +112,8 @@ class Webhook(Base):
         self.assertTrue(self.m.list()[0]["done"])
 
     def test_rearm_keeps_url(self):
-        a = self.m.arm("h", "1", wf("CUWebhook", max_runs=0))
-        b = self.m.arm("h", "1", wf("CUWebhook", max_runs=5))
+        a = self.m.arm("h", "1", wf("CUCWebhook", max_runs=0))
+        b = self.m.arm("h", "1", wf("CUCWebhook", max_runs=5))
         self.assertEqual((a["hook_path"], a["token"]), (b["hook_path"], b["token"]))
 
 
@@ -121,7 +121,7 @@ class Batch(Base):
     def test_one_run_per_file_in_order(self):
         for n in ("b.png", "a.png", "c.png", "x.txt"):
             (self.dir / n).write_bytes(b"1")
-        p = wf("CUFolderBatch", folder=str(self.dir), patterns="*.png", recursive=False, sort="name", max_files=0,
+        p = wf("CUCFolderBatch", folder=str(self.dir), patterns="*.png", recursive=False, sort="name", max_files=0,
                new_seeds=False, skip_if_busy=False)
         st = self.m.arm("b", "1", p)
         self.assertEqual(st["limit"], 3)
@@ -137,7 +137,7 @@ class Batch(Base):
         busy = {"on": True}
         m = triggers.Manager(None, self.q, busy_fn=lambda pid: busy["on"], now_fn=self.clock.now,
                              mono_fn=self.clock.mono)
-        m.arm("b", "1", wf("CUFolderBatch", folder=str(self.dir), patterns="", recursive=False, sort="name",
+        m.arm("b", "1", wf("CUCFolderBatch", folder=str(self.dir), patterns="", recursive=False, sort="name",
                            max_files=0, new_seeds=False, skip_if_busy=True))
         m.tick()
         m.tick()
@@ -148,7 +148,7 @@ class Batch(Base):
 
     def test_empty_folder_refused(self):
         with self.assertRaises(ValueError):
-            self.m.arm("b", "1", wf("CUFolderBatch", folder=str(self.dir), patterns="*.png", recursive=False,
+            self.m.arm("b", "1", wf("CUCFolderBatch", folder=str(self.dir), patterns="*.png", recursive=False,
                                     sort="name", max_files=0))
 
 
@@ -251,7 +251,7 @@ class CopyMove(unittest.TestCase):
             self.assertTrue((d / "done" / "a.png").exists())
 
 
-@unittest.skipUnless(shutil.which("ffmpeg") or os.environ.get("CRATEUTILS_FFMPEG"), "ffmpeg not installed")
+@unittest.skipUnless(shutil.which("ffmpeg") or os.environ.get("CRATEUTILS_COMFY_FFMPEG"), "ffmpeg not installed")
 class Audio(unittest.TestCase):
     def test_every_audio_format(self):
         sr = 44100

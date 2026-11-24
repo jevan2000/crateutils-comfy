@@ -30,11 +30,11 @@ def fill(template: str, run: dict | None) -> str:
     return out
 
 
-class CUNotify(IO.ComfyNode):
+class CUCNotify(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUNotify", display_name="Notify", category=CAT,
+            node_id="CUCNotify", display_name="Notify", category=CAT,
             search_aliases=["notify", "discord", "ntfy", "toast", "notification", "alert", "message me"],
             description="Send a notification when the workflow gets here, with the first image if one is "
                         "connected: a Windows toast on this PC, a Discord channel (webhook) or ntfy (phone app). "
@@ -80,7 +80,7 @@ class CUNotify(IO.ComfyNode):
             arr = np.round(np.clip(images[0].detach().cpu().float().numpy()[..., :3], 0, 1) * 255).astype(np.uint8)
             png = notify.png_preview(arr)
             if any(s == "toast" for s, _ in dests):
-                tmpdir = tempfile.mkdtemp(prefix="crateutils_notify_")
+                tmpdir = tempfile.mkdtemp(prefix="crateutils_comfy_notify_")
                 path = os.path.join(tmpdir, "preview.png")
                 with open(path, "wb") as f:
                     f.write(png)
@@ -99,4 +99,4 @@ class CUNotify(IO.ComfyNode):
         return IO.NodeOutput(report, ui=UI.PreviewText(report))
 
 
-NODES = [CUNotify]
+NODES = [CUCNotify]

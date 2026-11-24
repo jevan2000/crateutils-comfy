@@ -18,7 +18,7 @@ Utility nodes for ComfyUI that run your workflow on their own and save it the wa
 Plus the **Triggers** side panel: every armed trigger with pause, fire and disarm, its run
 history, and a CSV log of every triggered run.
 
-Version 0.2.0. Changes are in [CHANGELOG.md](CHANGELOG.md).
+Version 0.3.0. Changes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -30,7 +30,7 @@ git clone https://github.com/jevan2000/crateutils-comfy
 Restart ComfyUI. The nodes are under **CrateUtils-Comfy** in the node menu. Nothing to pip install:
 it uses numpy and Pillow, which ComfyUI already has. Optional extras:
 
-- **ffmpeg** on PATH (or `CRATEUTILS_FFMPEG`) for the video formats.
+- **ffmpeg** on PATH (or `CRATEUTILS_COMFY_FFMPEG`) for the video formats.
 - **opencv-python-headless** for 16-bit and 32-bit TIFF (16-bit PNG and EXR need nothing).
 - Pillow 11.3 or newer for AVIF.
 
@@ -91,13 +91,13 @@ running are not seen. While paused, changes are dropped.
 ### Webhook Trigger
 
 Arm it, then copy the URL from the Triggers panel (**Copy URL** / **Copy curl**). The URL
-carries a secret token; send it as `?token=...`, an `X-CrateUtils-Token` header or
+carries a secret token; send it as `?token=...`, an `X-CrateUtils-Comfy-Token` header or
 `Authorization: Bearer ...`. A JSON or form body and any other query parameters come out as
 `payload` (JSON); `text` is the `text` / `prompt` / `message` field or a plain-text body.
 Use **JSON Field** (`field` like `prompt` or `settings.steps`) to pick values out.
 
 ```
-curl -X POST "http://127.0.0.1:8188/crateutils/hook/<id>?token=<token>" -H "Content-Type: application/json" -d "{\"text\": \"a red fox\"}"
+curl -X POST "http://127.0.0.1:8188/crateutils-comfy/hook/<id>?token=<token>" -H "Content-Type: application/json" -d "{\"text\": \"a red fox\"}"
 ```
 
 Replies: 202 queued, 403 wrong token, 409 paused, 410 out of runs, 413 body over 1 MB, 429 too
@@ -129,7 +129,7 @@ workflow fails anywhere, with the error. Connect `after` so the message waits fo
 export.
 
 Webhook URLs are secrets, so name them in the config instead of typing them into workflows
-you share (`ComfyUI/user/crateutils/config.json`):
+you share (`ComfyUI/user/crateutils-comfy/config.json`):
 
 ```json
 {"notify": {"phone": "https://ntfy.sh/my-topic", "team": "https://discord.com/api/webhooks/..."}}
@@ -167,29 +167,29 @@ make one file from the whole batch.
 
 Workflows are shared files, so CrateUtils-Comfy only reads, watches and writes inside ComfyUI's
 input, output and temp folders by default. To allow more, create
-`ComfyUI/user/crateutils/config.json`:
+`ComfyUI/user/crateutils-comfy/config.json`:
 
 ```json
 {"allowed_folders": ["D:/Renders", "S:/Shared/Inbox"]}
 ```
 
-or set `CRATEUTILS_ALLOWED_FOLDERS` (`;`-separated on Windows), then restart ComfyUI.
+or set `CRATEUTILS_COMFY_ALLOWED_FOLDERS` (`;`-separated on Windows), then restart ComfyUI.
 
 ## API
 
 The Arm button calls these routes; scripts can call them too:
 
-- `GET /crateutils/triggers`: armed triggers and their status.
-- `POST /crateutils/triggers` `{"key", "node_id", "prompt", "extra_pnginfo"?}`: arm the trigger
+- `GET /crateutils-comfy/triggers`: armed triggers and their status.
+- `POST /crateutils-comfy/triggers` `{"key", "node_id", "prompt", "extra_pnginfo"?}`: arm the trigger
   node `node_id` of an API-format `prompt`.
-- `POST /crateutils/triggers/disarm` `{"key"}` or `{"all": true}`.
-- `POST /crateutils/triggers/fire` `{"key"}`: one test run.
-- `POST /crateutils/triggers/pause` `{"key", "paused": true|false}`.
-- `GET|POST /crateutils/hook/<id>`: a Webhook Trigger's URL (needs its token).
-- `GET /crateutils/runs.csv`: the run log.
+- `POST /crateutils-comfy/triggers/disarm` `{"key"}` or `{"all": true}`.
+- `POST /crateutils-comfy/triggers/fire` `{"key"}`: one test run.
+- `POST /crateutils-comfy/triggers/pause` `{"key", "paused": true|false}`.
+- `GET|POST /crateutils-comfy/hook/<id>`: a Webhook Trigger's URL (needs its token).
+- `GET /crateutils-comfy/runs.csv`: the run log.
 
-Armed triggers are stored in `ComfyUI/user/crateutils/triggers.json` and the run log in
-`ComfyUI/user/crateutils/runs.csv` (fired at, trigger, title, kind, run, event, input files,
+Armed triggers are stored in `ComfyUI/user/crateutils-comfy/triggers.json` and the run log in
+`ComfyUI/user/crateutils-comfy/runs.csv` (fired at, trigger, title, kind, run, event, input files,
 prompt id, status, seconds, outputs, error).
 
 ## Development

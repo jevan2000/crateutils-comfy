@@ -2,11 +2,11 @@
 
 A workflow is a file anyone can share, so its paths are checked: by default only
 ComfyUI's input, output, temp and user folders are allowed. More folders can be
-added in ``<ComfyUI user folder>/crateutils/config.json``::
+added in ``<ComfyUI user folder>/crateutils-comfy/config.json``::
 
     {"allowed_folders": ["D:/Renders", "S:/Shared/Inbox"]}
 
-or with the environment variable ``CRATEUTILS_ALLOWED_FOLDERS`` (separated by ``;``
+or with the environment variable ``CRATEUTILS_COMFY_ALLOWED_FOLDERS`` (separated by ``;``
 on Windows, ``:`` elsewhere).
 """
 
@@ -16,7 +16,7 @@ import json
 import os
 from pathlib import Path
 
-ENV = "CRATEUTILS_ALLOWED_FOLDERS"
+ENV = "CRATEUTILS_COMFY_ALLOWED_FOLDERS"
 
 
 def _norm(p: str | os.PathLike) -> Path:
@@ -64,4 +64,4 @@ def check(path: str, roots: list[Path], base: Path | None = None, what: str = "p
     raise ValueError(
         f"{what} {p} is outside the folders CrateUtils-Comfy may use:\n  {allowed}\n"
         f"Add its folder to \"allowed_folders\" in the CrateUtils-Comfy config.json (in ComfyUI's user folder, "
-        f"under crateutils/) or to the {ENV} environment variable, then restart ComfyUI.")
+        f"under crateutils-comfy/) or to the {ENV} environment variable, then restart ComfyUI.")

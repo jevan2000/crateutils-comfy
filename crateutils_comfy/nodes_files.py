@@ -31,11 +31,11 @@ def _load(path) -> tuple[np.ndarray, np.ndarray]:
     return rgb, a
 
 
-class CULoadImagePath(IO.ComfyNode):
+class CUCLoadImagePath(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CULoadImagePath", display_name="Load Image (Path)", category=CAT,
+            node_id="CUCLoadImagePath", display_name="Load Image (Path)", category=CAT,
             search_aliases=["load image from path", "image from file", "load path"],
             description="Load an image from a file path, e.g. the path a Folder or File Watcher outputs. Several "
                         "paths (one per line) load as a batch; they must be the same size. Reloads when the file "
@@ -88,11 +88,11 @@ class CULoadImagePath(IO.ComfyNode):
 from .fileops import IF_EXISTS, copy_or_move  # noqa: E402
 
 
-class CUCopyFiles(IO.ComfyNode):
+class CUCCopyFiles(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUCopyFiles", display_name="Copy / Move Files", category=CAT,
+            node_id="CUCCopyFiles", display_name="Copy / Move Files", category=CAT,
             search_aliases=["copy file", "move file", "send to folder", "done folder", "archive input"],
             description="Copy or move files to another folder: send finished exports to a share, or move a "
                         "watched input file into a 'done' folder once it is processed. Connect 'after' (e.g. to "
@@ -133,4 +133,4 @@ class CUCopyFiles(IO.ComfyNode):
         return IO.NodeOutput("\n".join(new), report, ui=UI.PreviewText(report))
 
 
-NODES = [CULoadImagePath, CUCopyFiles]
+NODES = [CUCLoadImagePath, CUCCopyFiles]

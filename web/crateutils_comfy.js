@@ -3,13 +3,13 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const TRIGGERS = new Set(["CUScheduler", "CUFolderWatcher", "CUFileWatcher", "CUWebhook", "CUFolderBatch"]);
+const TRIGGERS = new Set(["CUCScheduler", "CUCFolderWatcher", "CUCFileWatcher", "CUCWebhook", "CUCFolderBatch"]);
 const POLL_MS = 3000;
 let latest = [];
 const panels = new Set();
 
 function graphId() {
-  return String(app.graph?.id || app.graph?.extra?.crateutils_id || "workflow");
+  return String(app.graph?.id || app.graph?.extra?.crateutils_comfy_id || "workflow");
 }
 
 function keyFor(node) {
@@ -69,8 +69,8 @@ function statusText(t) {
 
 function label(node) {
   const t = statusFor(node);
-  if (!t) return node.comfyClass === "CUFolderBatch" ? "▶ Start batch" : "▶ Arm (not armed)";
-  return `${statusText(t)} (click to ${t.done && node.comfyClass === "CUFolderBatch" ? "clear" : "disarm"})`.slice(0, 100);
+  if (!t) return node.comfyClass === "CUCFolderBatch" ? "▶ Start batch" : "▶ Arm (not armed)";
+  return `${statusText(t)} (click to ${t.done && node.comfyClass === "CUCFolderBatch" ? "clear" : "disarm"})`.slice(0, 100);
 }
 
 function refresh() {
@@ -91,7 +91,7 @@ function refresh() {
 
 async function poll() {
   try {
-    const r = await api.fetchApi("/crateutils/triggers");
+    const r = await api.fetchApi("/crateutils-comfy/triggers");
     if (r.ok) latest = (await r.json()).triggers || [];
     refresh();
   } catch (_) { /* server restarting */ }
@@ -100,7 +100,7 @@ async function poll() {
 async function toggle(node) {
   const key = keyFor(node);
   if (statusFor(node)) {
-    await post("/crateutils/triggers/disarm", { key });
+    await post("/crateutils-comfy/triggers/disarm", { key });
     toast("info", "CrateUtils-Comfy", "Disarmed");
     return poll();
   }
@@ -108,7 +108,7 @@ async function toggle(node) {
     const p = await app.graphToPrompt();
     const apiId = findApiId(p.output, node);
     if (!apiId) throw new Error("this node is muted or bypassed, so there is nothing to arm");
-    const st = await post("/crateutils/triggers", { key, node_id: apiId, local_id: String(node.id),
+    const st = await post("/crateutils-comfy/triggers", { key, node_id: apiId, local_id: String(node.id),
       graph_id: graphId(), title: node.title || "", prompt: p.output, extra_pnginfo: { workflow: p.workflow } });
     let detail = st.summary || "";
     if (st.kind === "webhook") detail += " (URL and token: CrateUtils-Comfy panel in the side bar)";
@@ -121,7 +121,7 @@ async function toggle(node) {
 
 async function fireNow(key) {
   try {
-    await post("/crateutils/triggers/fire", { key });
+    await post("/crateutils-comfy/triggers/fire", { key });
     toast("info", "CrateUtils-Comfy", "Queued a test run");
   } catch (e) {
     toast("error", "CrateUtils-Comfy", e.message);
@@ -185,9 +185,9 @@ function card(t) {
   }
   const actions = h("div", {});
   if (!t.done) actions.append(button(t.paused ? "Resume" : "Pause",
-    () => post("/crateutils/triggers/pause", { key: t.key, paused: !t.paused })));
+    () => post("/crateutils-comfy/triggers/pause", { key: t.key, paused: !t.paused })));
   actions.append(button("Fire now", () => fireNow(t.key), "Queue one test run (not counted)"));
-  actions.append(button("Disarm", () => post("/crateutils/triggers/disarm", { key: t.key })));
+  actions.append(button("Disarm", () => post("/crateutils-comfy/triggers/disarm", { key: t.key })));
   if (here) actions.append(button("Show node", () => {
     const n = app.graph.getNodeById?.(Number(t.local_id)) || app.graph._nodes.find((x) => String(x.id) === t.local_id);
     if (n) { app.canvas.centerOnNode?.(n); app.canvas.selectNode?.(n); }
@@ -211,9 +211,9 @@ function renderPanel(root) {
       h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
         h("b", {}, "CrateUtils-Comfy triggers"),
         h("span", {}, button("↻", poll, "Refresh"),
-          button("Run log (CSV)", () => { window.open(api.apiURL("/crateutils/runs.csv"), "_blank"); }),
+          button("Run log (CSV)", () => { window.open(api.apiURL("/crateutils-comfy/runs.csv"), "_blank"); }),
           latest.length ? button("Disarm all", async () => {
-            if (confirm(`Disarm all ${latest.length} triggers?`)) await post("/crateutils/triggers/disarm", { all: true });
+            if (confirm(`Disarm all ${latest.length} triggers?`)) await post("/crateutils-comfy/triggers/disarm", { all: true });
           }) : null)),
       latest.length ? latest.map(card)
         : h("p", { style: S.dim }, "Nothing armed. Add a Task Scheduler, Folder Watcher, File Watcher, Webhook "
@@ -222,16 +222,16 @@ function renderPanel(root) {
 }
 
 app.registerExtension({
-  name: "CrateUtils.Triggers",
+  name: "CrateUtilsComfy.Triggers",
   async setup() {
     // A graph without an id (older frontends) gets one, saved with the workflow, so keys stay stable.
     if (app.graph && !app.graph.id) {
       app.graph.extra = app.graph.extra || {};
-      app.graph.extra.crateutils_id = app.graph.extra.crateutils_id || crypto.randomUUID();
+      app.graph.extra.crateutils_comfy_id = app.graph.extra.crateutils_comfy_id || crypto.randomUUID();
     }
     try {
       app.extensionManager?.registerSidebarTab?.({
-        id: "crateutils-triggers", icon: "pi pi-clock", title: "Triggers", tooltip: "CrateUtils-Comfy Trigger Manager",
+        id: "crateutils-comfy-triggers", icon: "pi pi-clock", title: "Triggers", tooltip: "CrateUtils-Comfy Trigger Manager",
         type: "custom",
         render: (el) => { panels.add(el); renderPanel(el); poll(); },
       });

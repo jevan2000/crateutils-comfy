@@ -454,7 +454,7 @@ def encode_multi(frames: list[np.ndarray], s: Settings) -> tuple[bytes, str]:
 
 # ----------------------------------------------------------------- video
 def ffmpeg_path() -> str:
-    for env in ("CRATEUTILS_FFMPEG", "CRATENODE_FFMPEG"):
+    for env in ("CRATEUTILS_COMFY_FFMPEG", "CRATENODE_FFMPEG"):
         p = os.environ.get(env)
         if p and Path(p).is_file():
             return p
@@ -467,7 +467,7 @@ def ffmpeg_path() -> str:
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception:
         pass
-    raise RuntimeError("ffmpeg not found: install it on PATH or set CRATEUTILS_FFMPEG to the ffmpeg executable")
+    raise RuntimeError("ffmpeg not found: install it on PATH or set CRATEUTILS_COMFY_FFMPEG to the ffmpeg executable")
 
 
 def crf(quality: int, lo: int, hi: int) -> int:
@@ -543,7 +543,7 @@ def write_video(frames: list[np.ndarray], s: Settings, path: str, audio: tuple |
     h, w = frames[0].shape[:2]
     args, detail = video_args(s, alpha)
     ff = ffmpeg or ffmpeg_path()
-    with tempfile.TemporaryDirectory(prefix="crateutils_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="crateutils_comfy_") as tmp:
         cmd = [ff, "-y", "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba",
                "-s", f"{w}x{h}", "-r", f"{s.fps:g}", "-i", "-"]
         n_in = 1

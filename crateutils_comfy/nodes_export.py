@@ -40,11 +40,11 @@ def _frames(image, mask, meaning) -> list[np.ndarray]:
     return [np.concatenate([rgb[i], alpha[i][..., None]], axis=-1).astype(np.float32) for i in range(b)]
 
 
-class CUExport(IO.ComfyNode):
+class CUCExport(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUExport", display_name="Export File", category=CAT,
+            node_id="CUCExport", display_name="Export File", category=CAT,
             search_aliases=["save as", "export", "save jpeg", "save webp", "save tiff", "save exr", "save mp4",
                             "save gif", "16-bit png", "avif"],
             description="Save images as PNG (8/16-bit), JPEG, WebP, AVIF, TIFF (8/16/32-bit), JPEG 2000, EXR "
@@ -59,7 +59,7 @@ class CUExport(IO.ComfyNode):
                                        "video / PDF for those formats). Not needed for the audio formats"),
                 IO.Combo.Input("format", options=list(ex.FORMATS), default="png"),
                 IO.Combo.Input("preset", options=ex.PRESETS, default="high", tooltip=PRESET_TIP),
-                IO.String.Input("filename_prefix", default="CrateUtils/export",
+                IO.String.Input("filename_prefix", default="CrateUtils-Comfy/export",
                                 tooltip="Like Save Image: a/b makes a subfolder; %date:yyyy-MM-dd% and "
                                         "%width%/%height% work"),
                 IO.Mask.Input("mask", optional=True, tooltip="Transparency for the image"),
@@ -184,4 +184,4 @@ class CUExport(IO.ComfyNode):
         return IO.NodeOutput("\n".join(r.path for r in results), report, ui=ui)
 
 
-NODES = [CUExport]
+NODES = [CUCExport]

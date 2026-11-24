@@ -14,8 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from crateutils import paths, triggers, watch  # noqa: E402
-from crateutils import schedule as sch  # noqa: E402
+from crateutils_comfy import paths, triggers, watch  # noqa: E402
+from crateutils_comfy import schedule as sch  # noqa: E402
 
 NOW = datetime(2026, 11, 23, 10, 0, 0)  # a Monday
 
@@ -107,7 +107,7 @@ class ManagerSchedule(unittest.TestCase):
         base = dict(start="now", every=1.0, unit="minutes", count=3, days="", end="",
                     missed=sch.MISSED[0], new_seeds=True)
         base.update(kw)
-        return wf("CUScheduler", **base)
+        return wf("CUCScheduler", **base)
 
     def test_fires_count_times_then_done(self):
         st = self.m.arm("k", "1", self.sched())
@@ -227,7 +227,7 @@ class WatcherTests(unittest.TestCase):
         clock = Clock()
         queued = []
         m = triggers.Manager(None, lambda p, e: queued.append(p) or "pid", now_fn=clock.now, mono_fn=clock.mono)
-        p = wf("CUFolderWatcher", folder=str(self.root), patterns="*.png", recursive=False, events="added",
+        p = wf("CUCFolderWatcher", folder=str(self.root), patterns="*.png", recursive=False, events="added",
                settle=0.0, poll=1.0, max_runs=2, run_mode=triggers.RUN_MODES[0], new_seeds=False)
         m.arm("f", "1", p)
         for n in ("a.png", "b.png", "c.png"):
@@ -245,7 +245,7 @@ class WatcherTests(unittest.TestCase):
         queued = []
         m = triggers.Manager(None, lambda p, e: queued.append(p) or "pid", now_fn=clock.now, mono_fn=clock.mono)
         target = self.root / "prompt.txt"
-        p = wf("CUFileWatcher", file=str(target), events="changed (created or modified)", settle=0.0, poll=1.0,
+        p = wf("CUCFileWatcher", file=str(target), events="changed (created or modified)", settle=0.0, poll=1.0,
                max_runs=0)
         m.arm("f", "1", p)
         (self.root / "other.txt").write_text("x")

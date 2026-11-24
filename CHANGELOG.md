@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 (2026-11-23)
+
+Every internal name now matches CrateUtils-Comfy as well (breaking, before any real use):
+
+- Node IDs `CU*` → `CUC*` (e.g. `CUCScheduler`, `CUCExport`).
+- Routes `/crateutils/...` → `/crateutils-comfy/...` (webhook URLs too).
+- Settings, armed triggers and run log: `user/crateutils/` → `user/crateutils-comfy/`.
+- Webhook header `X-CrateUtils-Token` → `X-CrateUtils-Comfy-Token`.
+- Environment variables `CRATEUTILS_ALLOWED_FOLDERS` / `CRATEUTILS_FFMPEG` →
+  `CRATEUTILS_COMFY_ALLOWED_FOLDERS` / `CRATEUTILS_COMFY_FFMPEG`.
+- Python package `crateutils` → `crateutils_comfy`; `web/crateutils.js` → `web/crateutils_comfy.js`.
+- Export File's default prefix `CrateUtils/export` → `CrateUtils-Comfy/export`.
+
 ## 0.2.1 (2026-11-23)
 
 - Renamed the pack to CrateUtils-Comfy: GitHub repo `jevan2000/crateutils-comfy` (the old

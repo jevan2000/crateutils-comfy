@@ -1,6 +1,6 @@
 """Trigger nodes: Task Scheduler, Folder Watcher, File Watcher.
 
-Each node has an "Arm" button (web/crateutils.js). Arming stores this workflow with
+Each node has an "Arm" button (web/crateutils_comfy.js). Arming stores this workflow with
 the server, which queues it again when the schedule is due or the watched folder/file
 changes. On those runs the node outputs what fired it; on a normal run it outputs a
 manual run (index 0), so the workflow can be tested by hand.
@@ -43,11 +43,11 @@ def _seed(run: dict | None) -> int:
     return int(run["seed"]) if run and "seed" in run else random.randint(0, 2**53 - 1)
 
 
-class CUScheduler(IO.ComfyNode):
+class CUCScheduler(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUScheduler", display_name="Task Scheduler", category=CAT,
+            node_id="CUCScheduler", display_name="Task Scheduler", category=CAT,
             search_aliases=["schedule", "timer", "cron", "run at", "repeat", "every hour"],
             description="Run this workflow at a date and time, and repeat it a number of times. " + ARM,
             inputs=[
@@ -128,11 +128,11 @@ def _watch_inputs(event_options: list[str], default_event: str) -> list:
     ]
 
 
-class CUFolderWatcher(IO.ComfyNode):
+class CUCFolderWatcher(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUFolderWatcher", display_name="Folder Watcher", category=CAT,
+            node_id="CUCFolderWatcher", display_name="Folder Watcher", category=CAT,
             search_aliases=["watch folder", "hot folder", "drop folder", "on new file", "folder trigger"],
             description="Run this workflow when files are added to (or changed or removed in) a folder, with the "
                         "file's path as an output: a hot folder. Files already there when you arm it are ignored. "
@@ -178,11 +178,11 @@ class CUFolderWatcher(IO.ComfyNode):
         return IO.NodeOutput(p, p, "manual", 0, _seed(None), info, ui=UI.PreviewText(info))
 
 
-class CUFileWatcher(IO.ComfyNode):
+class CUCFileWatcher(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUFileWatcher", display_name="File Watcher", category=CAT,
+            node_id="CUCFileWatcher", display_name="File Watcher", category=CAT,
             search_aliases=["watch file", "on file change", "file trigger", "on save"],
             description="Run this workflow when one file changes (saved over, created or removed), e.g. re-run "
                         "whenever you save a sketch or a prompt text file. " + ARM,
@@ -213,15 +213,15 @@ class CUFileWatcher(IO.ComfyNode):
         return IO.NodeOutput(str(path), "manual", 0, _seed(None), info, ui=UI.PreviewText(info))
 
 
-class CUWebhook(IO.ComfyNode):
+class CUCWebhook(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUWebhook", display_name="Webhook Trigger", category=CAT,
+            node_id="CUCWebhook", display_name="Webhook Trigger", category=CAT,
             search_aliases=["webhook", "http trigger", "api trigger", "remote run", "url trigger"],
             description="Run this workflow when a URL is called: from a phone shortcut, a Stream Deck, a script or "
                         "a bot. Arm it, then copy the URL and secret token from the Trigger Manager panel "
-                        "(CrateUtils-Comfy in the side bar). Send the token as ?token=..., an X-CrateUtils-Token header "
+                        "(CrateUtils-Comfy in the side bar). Send the token as ?token=..., an X-CrateUtils-Comfy-Token header "
                         "or 'Authorization: Bearer ...'. A JSON or form body (and other query parameters) comes "
                         "out as 'payload'; use JSON Field to pick values out. The URL works wherever ComfyUI is "
                         "reachable (only this PC unless ComfyUI runs with --listen). " + ARM,
@@ -260,11 +260,11 @@ class CUWebhook(IO.ComfyNode):
                              ui=UI.PreviewText(info))
 
 
-class CUFolderBatch(IO.ComfyNode):
+class CUCFolderBatch(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUFolderBatch", display_name="Folder Batch", category=CAT,
+            node_id="CUCFolderBatch", display_name="Folder Batch", category=CAT,
             search_aliases=["batch folder", "for each file", "process folder", "loop files", "run per file"],
             description="Run this workflow once for every file already in a folder (the watchers only see new "
                         "ones). Press Start on the node: one run per file, in the order you pick, by default one "
@@ -320,11 +320,11 @@ class CUFolderBatch(IO.ComfyNode):
         return IO.NodeOutput(files[0], Path(files[0]).stem, 0, total, _seed(None), info, ui=UI.PreviewText(info))
 
 
-class CUJsonField(IO.ComfyNode):
+class CUCJsonField(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
-            node_id="CUJsonField", display_name="JSON Field", category=f"{ROOT}/Files",
+            node_id="CUCJsonField", display_name="JSON Field", category=f"{ROOT}/Files",
             search_aliases=["json", "get field", "payload field", "parse json"],
             description="Pick one value out of JSON, e.g. a Webhook Trigger's payload. 'field' is a dotted path: "
                         "prompt, settings.steps, images.0.url.",
@@ -361,4 +361,4 @@ class CUJsonField(IO.ComfyNode):
         return IO.NodeOutput(s, i, f, found)
 
 
-NODES = [CUScheduler, CUFolderWatcher, CUFileWatcher, CUWebhook, CUFolderBatch, CUJsonField]
+NODES = [CUCScheduler, CUCFolderWatcher, CUCFileWatcher, CUCWebhook, CUCFolderBatch, CUCJsonField]

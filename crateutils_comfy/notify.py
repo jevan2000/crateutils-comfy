@@ -22,7 +22,7 @@ import urllib.request
 import uuid
 
 TIMEOUT = 20
-UA = "CrateUtils-ComfyUI/0.2"
+UA = "CrateUtils-Comfy/0.3"
 
 
 def resolve(destinations: str, named: dict[str, str]) -> list[tuple[str, str]]:
@@ -105,7 +105,7 @@ def send_toast(title: str, message: str, image_path: str | None = None):
     img = f'<image placement="hero" src="{_xml(image_path)}"/>' if image_path else ""
     xml = (f'<toast><visual><binding template="ToastGeneric"><text>{_xml(title or "ComfyUI")}</text>'
            f"<text>{_xml(message[:500])}</text>{img}</binding></visual></toast>")
-    with tempfile.TemporaryDirectory(prefix="crateutils_toast_") as d:
+    with tempfile.TemporaryDirectory(prefix="crateutils_comfy_toast_") as d:
         xf, sf = os.path.join(d, "toast.xml"), os.path.join(d, "toast.ps1")
         with open(xf, "w", encoding="utf-8") as f:
             f.write(xml)

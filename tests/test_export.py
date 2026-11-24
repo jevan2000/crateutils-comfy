@@ -17,7 +17,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from crateutils import exporter as ex  # noqa: E402
+from crateutils_comfy import exporter as ex  # noqa: E402
 
 
 def gradient(w=64, h=48, alpha=True):
@@ -148,7 +148,7 @@ class Formats(unittest.TestCase):
             self.save([gradient(), gradient(32, 32)], fmt="gif (animated)")
 
 
-@unittest.skipUnless(shutil.which("ffmpeg") or os.environ.get("CRATEUTILS_FFMPEG"), "ffmpeg not installed")
+@unittest.skipUnless(shutil.which("ffmpeg") or os.environ.get("CRATEUTILS_COMFY_FFMPEG"), "ffmpeg not installed")
 class Video(unittest.TestCase):
     def test_codecs(self):
         frames = [np.roll(gradient(65, 49), i * 4, axis=1) for i in range(6)]  # odd size: needs padding

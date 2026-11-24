@@ -33,9 +33,9 @@ from . import watch
 
 log = logging.getLogger("CrateUtils-Comfy")
 
-RUN_KEY = "_crateutils_run"
-KINDS = {"CUScheduler": "schedule", "CUFolderWatcher": "folder", "CUFileWatcher": "file",
-         "CUWebhook": "webhook", "CUFolderBatch": "batch"}
+RUN_KEY = "_crateutils_comfy_run"
+KINDS = {"CUCScheduler": "schedule", "CUCFolderWatcher": "folder", "CUCFileWatcher": "file",
+         "CUCWebhook": "webhook", "CUCFolderBatch": "batch"}
 RUN_MODES = ["one run per file", "one run per batch"]
 BATCH_SORT = ["name", "oldest first", "newest first"]
 SEED_KEYS = ("seed", "noise_seed")
@@ -576,7 +576,7 @@ class Manager:
             return sch.describe(t.sched) if t.sched else ""
         if t.kind == "webhook":
             lim = f", max {s['max_runs']} runs" if s.get("max_runs") else ""
-            return f"webhook /crateutils/hook/{t.state.get('hook_id', '')}{lim}"
+            return f"webhook /crateutils-comfy/hook/{t.state.get('hook_id', '')}{lim}"
         if t.kind == "batch":
             return f"{t.state.get('total', 0)} files in {s['folder']} ({s['sort']})"
         what = s.get("folder") or s.get("file")
@@ -599,7 +599,7 @@ class Manager:
                "watch_ok": st.get("watch_ok", True), "held": len(t.held) + len(t.inbox),
                "pending": len(st.get("pending_files") or []), "runs": st.get("runs", [])}
         if t.kind == "webhook":
-            out["hook_path"] = f"/crateutils/hook/{st.get('hook_id', '')}"
+            out["hook_path"] = f"/crateutils-comfy/hook/{st.get('hook_id', '')}"
             if secrets_too:
                 out["token"] = st.get("token")
         return out
@@ -653,7 +653,7 @@ class Manager:
                 except Exception:
                     log.exception("CrateUtils-Comfy: trigger loop error")
 
-        self._thread = threading.Thread(target=loop, name="CrateUtils-triggers", daemon=True)
+        self._thread = threading.Thread(target=loop, name="CrateUtils-Comfy-triggers", daemon=True)
         self._thread.start()
 
     def stop(self) -> None:

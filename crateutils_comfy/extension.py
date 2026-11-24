@@ -10,7 +10,7 @@ from typing_extensions import override
 from . import __version__, nodes_export, nodes_files, nodes_notify, nodes_triggers
 
 
-class CrateUtils(ComfyExtension):
+class CrateUtilsComfy(ComfyExtension):
     @override
     async def get_node_list(self) -> list[type[IO.ComfyNode]]:
         try:
@@ -24,5 +24,5 @@ class CrateUtils(ComfyExtension):
         return nodes_triggers.NODES + nodes_files.NODES + nodes_export.NODES + nodes_notify.NODES
 
 
-async def comfy_entrypoint() -> CrateUtils:
-    return CrateUtils()
+async def comfy_entrypoint() -> CrateUtilsComfy:
+    return CrateUtilsComfy()
