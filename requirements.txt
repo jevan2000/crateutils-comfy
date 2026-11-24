@@ -1,0 +1,2 @@
+# Nothing beyond what ComfyUI already installs (numpy, Pillow).
+# Optional: opencv-python-headless for 16/32-bit TIFF; ffmpeg on PATH for video.
