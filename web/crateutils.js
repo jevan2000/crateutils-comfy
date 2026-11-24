@@ -1,4 +1,4 @@
-// CrateUtils: Arm / Disarm / Fire-now buttons and a live status line on the trigger nodes,
+// CrateUtils-Comfy: Arm / Disarm / Fire-now buttons and a live status line on the trigger nodes,
 // plus the Trigger Manager side panel (every armed trigger, pause / fire / disarm, run history).
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
@@ -101,7 +101,7 @@ async function toggle(node) {
   const key = keyFor(node);
   if (statusFor(node)) {
     await post("/crateutils/triggers/disarm", { key });
-    toast("info", "CrateUtils", "Disarmed");
+    toast("info", "CrateUtils-Comfy", "Disarmed");
     return poll();
   }
   try {
@@ -111,10 +111,10 @@ async function toggle(node) {
     const st = await post("/crateutils/triggers", { key, node_id: apiId, local_id: String(node.id),
       graph_id: graphId(), title: node.title || "", prompt: p.output, extra_pnginfo: { workflow: p.workflow } });
     let detail = st.summary || "";
-    if (st.kind === "webhook") detail += " (URL and token: CrateUtils panel in the side bar)";
-    toast("success", "CrateUtils: armed", detail);
+    if (st.kind === "webhook") detail += " (URL and token: CrateUtils-Comfy panel in the side bar)";
+    toast("success", "CrateUtils-Comfy: armed", detail);
   } catch (e) {
-    toast("error", "CrateUtils: could not arm", String(e.message || e));
+    toast("error", "CrateUtils-Comfy: could not arm", String(e.message || e));
   }
   return poll();
 }
@@ -122,9 +122,9 @@ async function toggle(node) {
 async function fireNow(key) {
   try {
     await post("/crateutils/triggers/fire", { key });
-    toast("info", "CrateUtils", "Queued a test run");
+    toast("info", "CrateUtils-Comfy", "Queued a test run");
   } catch (e) {
-    toast("error", "CrateUtils", e.message);
+    toast("error", "CrateUtils-Comfy", e.message);
   }
   setTimeout(poll, 800);
 }
@@ -178,10 +178,10 @@ function card(t) {
   if (t.kind === "webhook") {
     const url = hookUrl(t);
     kids.push(h("div", { style: { ...S.mono, margin: "4px 0" } }, url),
-      button("Copy URL", () => navigator.clipboard.writeText(url).then(() => toast("info", "CrateUtils", "URL copied"))),
+      button("Copy URL", () => navigator.clipboard.writeText(url).then(() => toast("info", "CrateUtils-Comfy", "URL copied"))),
       button("Copy curl", () => navigator.clipboard.writeText(
         `curl -X POST "${url}" -H "Content-Type: application/json" -d "{\\"text\\": \\"hello\\"}"`)
-        .then(() => toast("info", "CrateUtils", "curl command copied"))));
+        .then(() => toast("info", "CrateUtils-Comfy", "curl command copied"))));
   }
   const actions = h("div", {});
   if (!t.done) actions.append(button(t.paused ? "Resume" : "Pause",
@@ -209,7 +209,7 @@ function renderPanel(root) {
   root.replaceChildren(
     h("div", { style: { padding: "8px" } },
       h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
-        h("b", {}, "CrateUtils triggers"),
+        h("b", {}, "CrateUtils-Comfy triggers"),
         h("span", {}, button("↻", poll, "Refresh"),
           button("Run log (CSV)", () => { window.open(api.apiURL("/crateutils/runs.csv"), "_blank"); }),
           latest.length ? button("Disarm all", async () => {
@@ -231,11 +231,11 @@ app.registerExtension({
     }
     try {
       app.extensionManager?.registerSidebarTab?.({
-        id: "crateutils-triggers", icon: "pi pi-clock", title: "Triggers", tooltip: "CrateUtils Trigger Manager",
+        id: "crateutils-triggers", icon: "pi pi-clock", title: "Triggers", tooltip: "CrateUtils-Comfy Trigger Manager",
         type: "custom",
         render: (el) => { panels.add(el); renderPanel(el); poll(); },
       });
-    } catch (e) { console.warn("CrateUtils: no side panel", e); }
+    } catch (e) { console.warn("CrateUtils-Comfy: no side panel", e); }
     setInterval(poll, POLL_MS);
     poll();
   },
@@ -247,7 +247,7 @@ app.registerExtension({
       this.cuArm = this.addWidget("button", label(this), null, () => toggle(this));
       this.cuFire = this.addWidget("button", "Fire now (test run)", null, () => {
         const st = statusFor(this);
-        if (!st) return toast("warn", "CrateUtils", "Arm the trigger first");
+        if (!st) return toast("warn", "CrateUtils-Comfy", "Arm the trigger first");
         fireNow(st.key);
       });
       for (const w of [this.cuArm, this.cuFire]) w.serialize = false;

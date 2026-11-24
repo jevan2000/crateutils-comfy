@@ -30,7 +30,7 @@ def config_roots(config_file: str | os.PathLike | None) -> list[Path]:
         try:
             data = json.loads(Path(config_file).read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
-            raise ValueError(f"CrateUtils config {config_file} is not valid JSON: {e}") from e
+            raise ValueError(f"CrateUtils-Comfy config {config_file} is not valid JSON: {e}") from e
         for p in data.get("allowed_folders", []) or []:
             if str(p).strip():
                 out.append(_norm(p))
@@ -62,6 +62,6 @@ def check(path: str, roots: list[Path], base: Path | None = None, what: str = "p
             return p
     allowed = "\n  ".join(str(r) for r in roots) or "(none)"
     raise ValueError(
-        f"{what} {p} is outside the folders CrateUtils may use:\n  {allowed}\n"
-        f"Add its folder to \"allowed_folders\" in the CrateUtils config.json (in ComfyUI's user folder, "
+        f"{what} {p} is outside the folders CrateUtils-Comfy may use:\n  {allowed}\n"
+        f"Add its folder to \"allowed_folders\" in the CrateUtils-Comfy config.json (in ComfyUI's user folder, "
         f"under crateutils/) or to the {ENV} environment variable, then restart ComfyUI.")

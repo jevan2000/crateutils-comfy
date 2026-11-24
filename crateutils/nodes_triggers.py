@@ -17,7 +17,7 @@ from comfy_api.latest import IO, UI
 from . import schedule as sch
 from . import triggers, watch
 
-ROOT = "CrateUtils"
+ROOT = "CrateUtils-Comfy"
 CAT = f"{ROOT}/Triggers"
 ARM = ("Press Arm on the node to start (it stores this workflow and runs it in the background, even with the "
        "browser closed, and after a ComfyUI restart); Disarm to stop. Queueing the workflow yourself is a "
@@ -140,7 +140,7 @@ class CUFolderWatcher(IO.ComfyNode):
             inputs=[
                 IO.String.Input("folder", default="",
                                 tooltip="Folder to watch; relative paths are inside ComfyUI's input folder. Folders "
-                                        "outside input/output need adding to the CrateUtils config (see README)"),
+                                        "outside input/output need adding to the CrateUtils-Comfy config (see README)"),
                 IO.String.Input("patterns", default="*.png;*.jpg;*.jpeg;*.webp",
                                 tooltip="Which files: patterns separated by ; (empty = all files). Temp files "
                                         "(*.tmp, *.part, *.crdownload...) are always ignored"),
@@ -221,7 +221,7 @@ class CUWebhook(IO.ComfyNode):
             search_aliases=["webhook", "http trigger", "api trigger", "remote run", "url trigger"],
             description="Run this workflow when a URL is called: from a phone shortcut, a Stream Deck, a script or "
                         "a bot. Arm it, then copy the URL and secret token from the Trigger Manager panel "
-                        "(CrateUtils in the side bar). Send the token as ?token=..., an X-CrateUtils-Token header "
+                        "(CrateUtils-Comfy in the side bar). Send the token as ?token=..., an X-CrateUtils-Token header "
                         "or 'Authorization: Bearer ...'. A JSON or form body (and other query parameters) comes "
                         "out as 'payload'; use JSON Field to pick values out. The URL works wherever ComfyUI is "
                         "reachable (only this PC unless ComfyUI runs with --listen). " + ARM,

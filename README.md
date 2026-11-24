@@ -1,4 +1,4 @@
-# CrateUtils
+# CrateUtils-Comfy
 
 Utility nodes for ComfyUI that run your workflow on their own and save it the way you want:
 
@@ -24,10 +24,10 @@ Version 0.2.0. Changes are in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd ComfyUI/custom_nodes
-git clone https://github.com/jevan2000/crate-utilities
+git clone https://github.com/jevan2000/crateutils-comfy
 ```
 
-Restart ComfyUI. The nodes are under **CrateUtils** in the node menu. Nothing to pip install:
+Restart ComfyUI. The nodes are under **CrateUtils-Comfy** in the node menu. Nothing to pip install:
 it uses numpy and Pillow, which ComfyUI already has. Optional extras:
 
 - **ffmpeg** on PATH (or `CRATEUTILS_FFMPEG`) for the video formats.
@@ -165,7 +165,7 @@ make one file from the whole batch.
 
 ## Allowed folders
 
-Workflows are shared files, so CrateUtils only reads, watches and writes inside ComfyUI's
+Workflows are shared files, so CrateUtils-Comfy only reads, watches and writes inside ComfyUI's
 input, output and temp folders by default. To allow more, create
 `ComfyUI/user/crateutils/config.json`:
 

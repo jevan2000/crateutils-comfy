@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 (2026-11-23)
+
+- Renamed the pack to CrateUtils-Comfy: GitHub repo `jevan2000/crateutils-comfy` (the old
+  `crate-utilities` URL redirects), node menu category "CrateUtils-Comfy", Comfy Registry
+  display name. Node IDs, routes (`/crateutils/...`), the `user/crateutils` folder, the
+  `X-CrateUtils-Token` header and `CRATEUTILS_*` variables are unchanged, so saved workflows,
+  armed triggers, webhook URLs and configs keep working.
+
 ## 0.2.0 (2026-11-23)
 
 - Triggers side panel: every armed trigger with Pause / Resume, Fire now, Disarm, Show node

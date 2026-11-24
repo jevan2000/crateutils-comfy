@@ -2,7 +2,7 @@
 
 A destination is one of:
   - ``toast``: a Windows notification on the machine running ComfyUI;
-  - a name from ``"notify"`` in the CrateUtils config.json, e.g.
+  - a name from ``"notify"`` in the CrateUtils-Comfy config.json, e.g.
     ``{"notify": {"phone": "https://ntfy.sh/my-topic", "team": "https://discord.com/api/webhooks/..."}}``
     (keeps webhook URLs, which are secrets, out of workflows you share);
   - a URL typed straight into the node (it is then saved in the workflow).
@@ -46,7 +46,7 @@ def resolve(destinations: str, named: dict[str, str]) -> list[tuple[str, str]]:
         else:
             out.append(("ntfy", url))
     if not out:
-        raise ValueError("no destination: type 'toast', a URL, or a name from the CrateUtils config")
+        raise ValueError("no destination: type 'toast', a URL, or a name from the CrateUtils-Comfy config")
     return out
 
 

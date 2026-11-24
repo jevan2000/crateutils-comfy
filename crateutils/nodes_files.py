@@ -39,7 +39,7 @@ class CULoadImagePath(IO.ComfyNode):
             search_aliases=["load image from path", "image from file", "load path"],
             description="Load an image from a file path, e.g. the path a Folder or File Watcher outputs. Several "
                         "paths (one per line) load as a batch; they must be the same size. Reloads when the file "
-                        "changes. Paths outside ComfyUI's input/output folders need adding to the CrateUtils config.",
+                        "changes. Paths outside ComfyUI's input/output folders need adding to the CrateUtils-Comfy config.",
             inputs=[IO.String.Input("path", default="", multiline=True,
                                     tooltip="One path per line; relative paths are inside ComfyUI's input folder")],
             outputs=[IO.Image.Output(display_name="image"),
@@ -97,7 +97,7 @@ class CUCopyFiles(IO.ComfyNode):
             description="Copy or move files to another folder: send finished exports to a share, or move a "
                         "watched input file into a 'done' folder once it is processed. Connect 'after' (e.g. to "
                         "Export File's paths) so this runs only after that step has finished. Folders outside "
-                        "ComfyUI's input/output need adding to the CrateUtils config (see README).",
+                        "ComfyUI's input/output need adding to the CrateUtils-Comfy config (see README).",
             is_output_node=True,
             inputs=[IO.String.Input("paths", default="", multiline=True,
                                     tooltip="Files, one per line (e.g. a watcher's path or Export File's paths); "

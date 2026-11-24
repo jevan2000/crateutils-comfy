@@ -19,8 +19,8 @@ class CrateUtils(ComfyExtension):
             comfy_glue.add_routes()
             comfy_glue.manager()  # restores armed triggers and starts the trigger thread
         except Exception as e:  # never block the nodes from loading
-            logging.warning("CrateUtils: triggers unavailable: %s", e)
-        logging.info("CrateUtils %s loaded", __version__)
+            logging.warning("CrateUtils-Comfy: triggers unavailable: %s", e)
+        logging.info("CrateUtils-Comfy %s loaded", __version__)
         return nodes_triggers.NODES + nodes_files.NODES + nodes_export.NODES + nodes_notify.NODES
 
 

@@ -1,18 +1,18 @@
 [project]
-name = "crate-utilities"
-description = "CrateUtils for ComfyUI: a task scheduler, folder and file watchers that run your workflow on their own, and an Export File node for PNG/16-bit, JPEG, WebP, AVIF, TIFF, EXR, GIF/APNG, PDF and video."
-version = "0.2.0"
+name = "crateutils-comfy"
+description = "CrateUtils-Comfy for ComfyUI: a task scheduler, folder and file watchers that run your workflow on their own, and an Export File node for PNG/16-bit, JPEG, WebP, AVIF, TIFF, EXR, GIF/APNG, PDF and video."
+version = "0.2.1"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = ["numpy", "pillow>=10"]
 
 [project.urls]
-Repository = "https://github.com/jevan2000/crate-utilities"
+Repository = "https://github.com/jevan2000/crateutils-comfy"
 
 [tool.comfy]
 # Set PublisherId before publishing to the Comfy Registry (registry.comfy.org).
 PublisherId = ""
-DisplayName = "CrateUtils"
+DisplayName = "CrateUtils-Comfy"
 Icon = ""
 includes = []
 

@@ -31,7 +31,7 @@ from typing import Callable
 from . import schedule as sch
 from . import watch
 
-log = logging.getLogger("CrateUtils")
+log = logging.getLogger("CrateUtils-Comfy")
 
 RUN_KEY = "_crateutils_run"
 KINDS = {"CUScheduler": "schedule", "CUFolderWatcher": "folder", "CUFileWatcher": "file",
@@ -201,7 +201,7 @@ class Manager:
             raise ValueError(f"node {node_id} is not in the workflow (is it muted or bypassed?)")
         kind = KINDS.get(prompt[node_id].get("class_type"))
         if kind is None:
-            raise ValueError(f"node {node_id} is not a CrateUtils trigger")
+            raise ValueError(f"node {node_id} is not a CrateUtils-Comfy trigger")
         settings = settings_from_prompt(kind, prompt[node_id].get("inputs", {}))
         clean = copy.deepcopy(prompt)
         clean[node_id].get("inputs", {}).pop(RUN_KEY, None)
@@ -217,7 +217,7 @@ class Manager:
         with self.lock:
             self.triggers[key] = t
             self.save()
-        log.info("CrateUtils: armed %s %s (%s)", kind, key, self.summary(t))
+        log.info("CrateUtils-Comfy: armed %s %s (%s)", kind, key, self.summary(t))
         return self.status(t, secrets_too=True)
 
     def disarm(self, key: str) -> bool:
@@ -225,7 +225,7 @@ class Manager:
             ok = self.triggers.pop(key, None) is not None
             self.save()
         if ok:
-            log.info("CrateUtils: disarmed %s", key)
+            log.info("CrateUtils-Comfy: disarmed %s", key)
         return ok
 
     def disarm_all(self) -> int:
@@ -242,7 +242,7 @@ class Manager:
                 return False
             t.state["paused"] = bool(paused)
             self.save()
-        log.info("CrateUtils: %s %s", "paused" if paused else "resumed", key)
+        log.info("CrateUtils-Comfy: %s %s", "paused" if paused else "resumed", key)
         return True
 
     def request_fire(self, key: str, info: dict | None = None) -> bool:
@@ -340,11 +340,11 @@ class Manager:
             except Exception as e:  # one bad trigger must not stop the others
                 t.state["last_error"] = str(e)
                 changed = True
-                log.warning("CrateUtils trigger %s: %s", t.key, e)
+                log.warning("CrateUtils-Comfy trigger %s: %s", t.key, e)
         try:
             changed |= self._track()
         except Exception as e:
-            log.warning("CrateUtils run tracking: %s", e)
+            log.warning("CrateUtils-Comfy run tracking: %s", e)
         if changed:
             with self.lock:
                 self.save()
@@ -404,10 +404,10 @@ class Manager:
             late = sch.GRACE + 1  # move on to the next future run
         elif late > sch.GRACE and s["missed"] == sch.MISSED[0]:
             st["missed"] = st.get("missed", 0) + 1
-            log.info("CrateUtils: %s missed the run due %s (%.0f s late)", t.key, due, late)
+            log.info("CrateUtils-Comfy: %s missed the run due %s (%.0f s late)", t.key, due, late)
         elif self._busy(t):
             st["skipped_busy"] = st.get("skipped_busy", 0) + 1
-            log.info("CrateUtils: %s skipped a run, the last one is still queued", t.key)
+            log.info("CrateUtils-Comfy: %s skipped a run, the last one is still queued", t.key)
         else:
             self._fire(t, {"event": "schedule", "due": due.isoformat(timespec="seconds"), "paths": []})
         if s["count"] and st["fired"] >= s["count"]:
@@ -495,7 +495,7 @@ class Manager:
             pid = self.queue_fn(prompt, t.extra_pnginfo)
         except Exception as e:
             st["last_error"] = f"{now:%H:%M:%S} queue failed: {e}"
-            log.warning("CrateUtils: %s could not queue the workflow: %s", t.key, e)
+            log.warning("CrateUtils-Comfy: %s could not queue the workflow: %s", t.key, e)
             if count:  # a failed run still uses up its slot, so a broken workflow can't retry forever
                 st["fired"] = index
             rec.update(status="not queued", error=str(e)[:300])
@@ -512,7 +512,7 @@ class Manager:
             entry = self.tracked.setdefault(pid, {"since": self.mono()})
             entry.update(key=t.key, fired_at=run["time"], index=index, event=info.get("event"),
                          paths=info.get("paths", []))
-        log.info("CrateUtils: %s fired run %s (%s) -> prompt %s", t.key, index, info.get("event"), pid)
+        log.info("CrateUtils-Comfy: %s fired run %s (%s) -> prompt %s", t.key, index, info.get("event"), pid)
 
     # ----- run tracking -------------------------------------------------------------
     def _track(self) -> bool:
@@ -550,7 +550,7 @@ class Manager:
             try:
                 self.notify_fn(entry["notify"], pid, res["error"] or res["status"])
             except Exception as e:
-                log.warning("CrateUtils: failure notification for %s not sent: %s", pid, e)
+                log.warning("CrateUtils-Comfy: failure notification for %s not sent: %s", pid, e)
 
     def _log_row(self, t: Trigger, entry: dict, pid: str, status: str, dur, outputs: list, error: str) -> None:
         if not self.log_path:
@@ -567,7 +567,7 @@ class Manager:
                     w.writerow(LOG_COLUMNS)
                 w.writerow(row)
         except OSError as e:
-            log.warning("CrateUtils: can't write the run log %s: %s", self.log_path, e)
+            log.warning("CrateUtils-Comfy: can't write the run log %s: %s", self.log_path, e)
 
     # ----- status / persistence -----------------------------------------------------
     def summary(self, t: Trigger) -> str:
@@ -624,7 +624,7 @@ class Manager:
         try:
             data = json.loads(self.store.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
-            log.warning("CrateUtils: can't read %s: %s", self.store, e)
+            log.warning("CrateUtils-Comfy: can't read %s: %s", self.store, e)
             return 0
         n = 0
         for d in data.get("triggers", []):
@@ -634,7 +634,7 @@ class Manager:
                 self._build(t, fresh=False)
             except Exception as e:
                 t.state["last_error"] = f"not restored: {e}"
-                log.warning("CrateUtils: trigger %s not restored: %s", t.key, e)
+                log.warning("CrateUtils-Comfy: trigger %s not restored: %s", t.key, e)
             with self.lock:
                 self.triggers[t.key] = t
             n += 1
@@ -651,7 +651,7 @@ class Manager:
                 try:
                     self.tick()
                 except Exception:
-                    log.exception("CrateUtils: trigger loop error")
+                    log.exception("CrateUtils-Comfy: trigger loop error")
 
         self._thread = threading.Thread(target=loop, name="CrateUtils-triggers", daemon=True)
         self._thread.start()

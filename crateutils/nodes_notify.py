@@ -39,12 +39,12 @@ class CUNotify(IO.ComfyNode):
             description="Send a notification when the workflow gets here, with the first image if one is "
                         "connected: a Windows toast on this PC, a Discord channel (webhook) or ntfy (phone app). "
                         "With on_failure it also tells you when the workflow fails. Keep webhook URLs out of "
-                        "shared workflows by naming them in the CrateUtils config: "
+                        "shared workflows by naming them in the CrateUtils-Comfy config: "
                         '{"notify": {"phone": "https://ntfy.sh/...", "team": "https://discord.com/api/webhooks/..."}} '
                         "and typing the name here.",
             is_output_node=True,
             inputs=[IO.String.Input("destination", default="toast",
-                                    tooltip="toast, a name from the CrateUtils config, or a Discord webhook / ntfy "
+                                    tooltip="toast, a name from the CrateUtils-Comfy config, or a Discord webhook / ntfy "
                                             "URL; several separated by commas"),
                     IO.String.Input("title", default="ComfyUI"),
                     IO.String.Input("message", default="Finished {trigger} run {run} {file}", multiline=True,

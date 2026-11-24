@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import notify, paths, triggers
 
-log = logging.getLogger("CrateUtils")
+log = logging.getLogger("CrateUtils-Comfy")
 _MANAGER: triggers.Manager | None = None
 MAX_HOOK_BODY = 1024 * 1024
 
@@ -33,7 +33,7 @@ def config() -> dict:
     try:
         return json.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        raise ValueError(f"CrateUtils config {f} is not valid JSON: {e}") from e
+        raise ValueError(f"CrateUtils-Comfy config {f} is not valid JSON: {e}") from e
 
 
 def named_destinations() -> dict[str, str]:
@@ -145,7 +145,7 @@ def notify_failure(settings: dict, prompt_id: str, error: str) -> None:
         msg += f"\nTrigger: {run}"
     msg += f"\n{error}"
     for line in notify.send(dests, settings.get("title") or "ComfyUI: run failed", msg, priority="high"):
-        log.info("CrateUtils failure notification: %s", line)
+        log.info("CrateUtils-Comfy failure notification: %s", line)
 
 
 def manager() -> triggers.Manager:
@@ -156,7 +156,7 @@ def manager() -> triggers.Manager:
                                     history_fn=history, notify_fn=notify_failure, log_path=d / "runs.csv")
         n = _MANAGER.load()
         if n:
-            log.info("CrateUtils: restored %d armed trigger(s)", n)
+            log.info("CrateUtils-Comfy: restored %d armed trigger(s)", n)
         _MANAGER.start()
     return _MANAGER
 
@@ -181,7 +181,7 @@ def on_prompt(json_data: dict) -> dict:
                 "run": f"{run.get('title') or run.get('kind')} run {run.get('index')}" if run else ""})
             break
     except Exception as e:  # never block a prompt over this
-        log.warning("CrateUtils: on_prompt: %s", e)
+        log.warning("CrateUtils-Comfy: on_prompt: %s", e)
     return json_data
 
 
@@ -194,7 +194,7 @@ def add_routes() -> None:
     try:
         srv.add_on_prompt_handler(on_prompt)
     except Exception as e:
-        log.warning("CrateUtils: failure notifications unavailable: %s", e)
+        log.warning("CrateUtils-Comfy: failure notifications unavailable: %s", e)
 
     def err(e, status=400):
         return web.json_response({"error": str(e)}, status=status)
