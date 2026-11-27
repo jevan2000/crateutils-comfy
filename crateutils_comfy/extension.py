@@ -7,7 +7,7 @@ import logging
 from comfy_api.latest import ComfyExtension, IO
 from typing_extensions import override
 
-from . import __version__, nodes_export, nodes_files, nodes_notify, nodes_triggers
+from . import __version__, nodes_export, nodes_files, nodes_notify, nodes_svg, nodes_triggers
 
 
 class CrateUtilsComfy(ComfyExtension):
@@ -21,7 +21,8 @@ class CrateUtilsComfy(ComfyExtension):
         except Exception as e:  # never block the nodes from loading
             logging.warning("CrateUtils-Comfy: triggers unavailable: %s", e)
         logging.info("CrateUtils-Comfy %s loaded", __version__)
-        return nodes_triggers.NODES + nodes_files.NODES + nodes_export.NODES + nodes_notify.NODES
+        return (nodes_triggers.NODES + nodes_files.NODES + nodes_export.NODES + nodes_notify.NODES
+                + nodes_svg.NODES)
 
 
 async def comfy_entrypoint() -> CrateUtilsComfy:

@@ -264,3 +264,340 @@ app.registerExtension({
     // Deleting the node does not disarm it: switching or reloading workflows also "removes" nodes.
   },
 });
+
+// ---------------------------------------------------------------- SVG page node
+// The browser draws the page (in the node body and, when the node runs, for the output),
+// so the picture on the node and the picture in the graph are the same pixels. The
+// server only stores what was drawn: see crateutils_comfy/svgcache.py, which owns the
+// key format used here, and comfy_glue.py for the three routes.
+const SVG_NODE = "CUCSvgPage";
+const INKSCAPE_NS = "http://www.inkscape.org/namespaces/inkscape";
+const SVG_POLL_MS = 1500;
+const RENDER_DEBOUNCE_MS = 300;
+const SERIF_ALIASES = new Set(["serif", "times", "times new roman", "liberation serif", "dejavu serif"]);
+let svgTick = 0;
+
+function svgPathOf(node) {
+  const raw = String(node.widgets?.find((w) => w.name === "svg_path")?.value || "");
+  return raw.split(/\r?\n/).map((s) => s.trim().replace(/^"|"$/g, "")).find(Boolean) || "";
+}
+
+function svgValue(node, name, fallback) {
+  const w = node.widgets?.find((x) => x.name === name);
+  return w && w.value !== undefined ? w.value : fallback;
+}
+
+function slugLabel(label) {
+  const s = String(label || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return s.slice(0, 24) || "x";
+}
+
+function bgKey(bg) {
+  return { transparent: "transparent", white: "white", "page colour": "page" }[bg] || "transparent";
+}
+
+function svgKey(hash, page, label, width, height, background) {
+  const p = Math.max(1, Math.round(Number(page) || 1));
+  return `v1_${String(hash).slice(0, 16)}_p${p}_l${slugLabel(label)}_${Math.round(Number(width) || 0)}`
+    + `x${Math.round(Number(height) || 0)}_${bgKey(background)}`;
+}
+
+async function svgSource(path, statOnly) {
+  const q = `?path=${encodeURIComponent(path)}${statOnly ? "&stat=1" : ""}`;
+  const r = await api.fetchApi(`/crateutils-comfy/svg/source${q}`);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+async function svgUpload(key, png) {
+  const r = await api.fetchApi("/crateutils-comfy/svg/render", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, png }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `the render could not be saved (HTTP ${r.status})`);
+  }
+}
+
+function svgParse(text) {
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  if (doc.querySelector("parsererror")) throw new Error("this file is not valid SVG");
+  // Inkscape pages are <inkscape:page> elements, NOT <g> wrappers. Layers carry
+  // inkscape:label too, so filter on the element name or a layer becomes a "page".
+  const pages = [...doc.getElementsByTagNameNS("*", "page")]
+    .filter((el) => el.namespaceURI === INKSCAPE_NS && el.hasAttribute("width") && el.hasAttribute("height"))
+    .map((el) => ({
+      label: el.getAttributeNS(INKSCAPE_NS, "label") || "",
+      x: Number(el.getAttribute("x")) || 0, y: Number(el.getAttribute("y")) || 0,
+      w: Number(el.getAttribute("width")), h: Number(el.getAttribute("height")),
+    }))
+    .filter((p) => p.w > 0 && p.h > 0);
+  if (!pages.length) {  // a plain SVG with no pages: its own viewBox (or size) is the one page
+    const root = doc.documentElement;
+    const vb = String(root.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+    if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) {
+      pages.push({ label: "", x: vb[0], y: vb[1], w: vb[2], h: vb[3] });
+    } else {
+      const w = parseFloat(root.getAttribute("width")) || 1000;
+      const hh = parseFloat(root.getAttribute("height")) || 1000;
+      pages.push({ label: "", x: 0, y: 0, w, h: hh });
+    }
+  }
+  const named = doc.getElementsByTagNameNS("*", "namedview")[0];
+  return { doc, pages, pageColor: named?.getAttribute("pagecolor") || "" };
+}
+
+function svgPage(spec, pages) {
+  const label = String(spec.page_label || "").trim();
+  if (label) {
+    const hit = pages.find((p) => p.label.toLowerCase() === label.toLowerCase());
+    if (!hit) throw new Error(`no page labelled "${label}"`);
+    return hit;
+  }
+  const i = Math.min(Math.max(1, Math.round(Number(spec.page) || 1)), pages.length) - 1;
+  return pages[i];
+}
+
+function withViewBox(text, vb) {
+  if (/<svg\b[^>]*\sviewBox="/s.test(text)) {
+    return text.replace(/<svg\b([^>]*?)\sviewBox="[^"]*"/s, `<svg$1 viewBox="${vb}"`);
+  }
+  return text.replace(/<svg\b([^>]*?)(\/?)>/s, `<svg$1 viewBox="${vb}"$2>`);
+}
+
+function svgImage(text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml;charset=utf-8" }));
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("the browser could not draw this SVG")); };
+    img.src = url;
+  });
+}
+
+// Width measurement, because document.fonts.check() answers true for fonts that are not
+// installed (measured: true for all 25 families tried, 8 of them absent). A family that
+// is not installed falls back to the browser's default serif, so "same width as serif"
+// is the signal -- except for the fonts that ARE that default, which are allowed below.
+let measureCtx = null;
+function svgFonts(doc, text) {
+  const fams = new Set();
+  const add = (v) => String(v || "").split(",").forEach((f) => {
+    const n = f.trim().replace(/^["']|["']$/g, "");
+    if (n && !["serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "inherit"].includes(n.toLowerCase())) {
+      fams.add(n);
+    }
+  });
+  for (const el of doc.querySelectorAll("text, tspan, textPath")) {
+    add(el.getAttribute("font-family"));
+    add(el.style?.fontFamily);
+    for (const m of String(el.getAttribute("style") || "").matchAll(/font-family\s*:\s*([^;}]+)/gi)) add(m[1]);
+  }
+  for (const st of doc.querySelectorAll("style")) {
+    for (const m of String(st.textContent || "").matchAll(/font-family\s*:\s*([^;}]+)/gi)) add(m[1]);
+  }
+  const out = [];
+  if (fams.size) {
+    measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
+    const width = (f) => { measureCtx.font = `72px ${f}`; return measureCtx.measureText("Hamburgefonstiv").width; };
+    const serif = width("serif");
+    const missing = [...fams].filter((f) => Math.abs(width(`"${f}"`) - serif) < 0.5
+      && !SERIF_ALIASES.has(f.toLowerCase()));
+    if (missing.length) out.push(`font substituted: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}`);
+  }
+  if (/device-cmyk\(/.test(text)) out.push("CMYK fills may not match Inkscape");
+  return out;
+}
+
+async function svgDraw(spec, source) {
+  const src = source || await svgSource(spec.path);
+  const { doc, pages, pageColor } = svgParse(src.text);
+  const page = svgPage(spec, pages);
+  const wantW = Number(spec.width) || 0;
+  const wantH = Number(spec.height) || 0;
+  let w = wantW > 0 ? wantW : (wantH > 0 ? Math.round(page.w * wantH / page.h) : Math.round(page.w));
+  let h = wantH > 0 ? wantH : (wantW > 0 ? Math.round(page.h * wantW / page.w) : Math.round(page.h));
+  w = Math.min(16384, Math.max(1, Math.round(w)));
+  h = Math.min(16384, Math.max(1, Math.round(h)));
+
+  const img = await svgImage(withViewBox(src.text, `${page.x} ${page.y} ${page.w} ${page.h}`));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  const bg = bgKey(spec.background);
+  if (bg !== "transparent") {   // "page" uses the colour Inkscape shows behind the page
+    ctx.fillStyle = bg === "page" ? (pageColor || "#ffffff") : "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    ctx.clearRect(0, 0, w, h);
+  }
+  ctx.drawImage(img, 0, 0, w, h);
+  return { png: canvas.toDataURL("image/png").split(",")[1], w, h, label: page.label,
+           warnings: svgFonts(doc, src.text), hash: src.hash, stat: { size: src.size, mtime_ns: src.mtime_ns } };
+}
+
+function svgBar(node, title, warnings, error) {
+  const c = node._cuc;
+  if (!c) return;
+  c.title.textContent = title.length > 160 ? `${title.slice(0, 160)}…` : title;
+  c.title.title = title;  // the full message, however long it is
+  c.title.style.color = error ? "#e2807a" : "";
+  c.warn.textContent = (warnings || []).join(" · ");
+  c.warn.title = (warnings || []).join("\n");
+}
+
+function svgSchedule(node) {
+  const c = node._cuc;
+  if (!c) return;
+  clearTimeout(c.timer);
+  c.timer = setTimeout(() => renderSvgNode(node), RENDER_DEBOUNCE_MS);
+}
+
+async function renderSvgNode(node) {
+  const c = node._cuc;
+  if (!c) return;
+  if (c.busy) { c.again = true; return; }
+  const path = svgPathOf(node);
+  if (!path) {
+    svgBar(node, "no file: type the path of an Inkscape .svg", []);
+    c.img.removeAttribute("src");
+    c.lastKey = "";
+    return;
+  }
+  c.busy = true;
+  try {
+    const spec = { path, page: svgValue(node, "page", 1), page_label: svgValue(node, "page_label", ""),
+      width: svgValue(node, "width", 0), height: svgValue(node, "height", 0),
+      background: svgValue(node, "background", "transparent") };
+    const r = await svgDraw(spec, await svgSource(path));
+    c.img.src = `data:image/png;base64,${r.png}`;
+    c.aspect = r.h / r.w;
+    c.stat = r.stat;
+    svgBar(node, `${r.label || `page ${spec.page}`} · ${r.w}×${r.h}`, r.warnings);
+    const key = svgKey(r.hash, spec.page, spec.page_label, spec.width, spec.height, spec.background);
+    if (key !== c.lastKey) {
+      await svgUpload(key, r.png);   // warm the server cache, so a run finds this exact page
+      c.lastKey = key;
+    }
+    node.setDirtyCanvas?.(true, true);
+  } catch (e) {
+    svgBar(node, String(e.message || e).slice(0, 200), [], true);
+  } finally {
+    c.busy = false;
+    if (c.again) { c.again = false; svgSchedule(node); }
+  }
+}
+
+function attachSvg(node) {
+  const el = document.createElement("div");
+  el.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;overflow:hidden;"
+    + "pointer-events:none;gap:2px";
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:11px;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+  title.textContent = "no file";
+  const warn = document.createElement("div");
+  warn.style.cssText = "font-size:10px;color:#e8a33d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+  const img = document.createElement("img");
+  img.style.cssText = "flex:1 1 auto;width:100%;min-height:0;object-fit:contain;display:block";
+  img.alt = "";
+  el.append(title, warn, img);
+
+  const widget = node.addDOMWidget("svg_preview", "svg_preview", el, {
+    serialize: false, afterResize: () => node.setDirtyCanvas?.(true, true),
+  });
+  widget.serialize = false;          // not in the workflow JSON (svg_path already is)
+  widget.options.serialize = false;  // not in the API prompt
+  node._cuc = { el, img, title, warn, aspect: 0.75, lastKey: "", stat: null, busy: false, again: false, timer: 0 };
+  widget.computeLayoutSize = () => {
+    const width = (node.size?.[0] || 320) - 20;
+    return { minHeight: Math.max(120, Math.round(width * (node._cuc?.aspect || 0.75)) + 26), minWidth: 160 };
+  };
+
+  for (const name of ["svg_path", "page", "page_label", "width", "height", "background"]) {
+    const w = node.widgets?.find((x) => x.name === name);
+    if (!w) continue;
+    const cb = w.callback;
+    w.callback = function (...args) {
+      const r = cb?.apply(this, args);
+      svgSchedule(node);
+      return r;
+    };
+  }
+  // Room for the picture without shrinking the inputs the user needs to reach.
+  setTimeout(() => {
+    if (node.size[0] < 340 || node.size[1] < 360) node.setSize([Math.max(node.size[0], 340), Math.max(node.size[1], 360)]);
+    svgSchedule(node);
+  }, 0);
+}
+
+async function svgPollPending() {
+  const r = await api.fetchApi("/crateutils-comfy/svg/pending");
+  if (!r.ok) return;
+  const { requests } = await r.json();
+  for (const req of requests || []) {
+    try {
+      const drawn = await svgDraw(req);
+      await svgUpload(req.key, drawn.png);
+    } catch (e) {
+      console.warn("CrateUtils-Comfy: could not draw", req.path, e);
+    }
+  }
+}
+
+function svgNodes() {
+  return (app.graph?._nodes || []).filter((n) => n && n.comfyClass === SVG_NODE && n._cuc);
+}
+
+async function svgPollSources() {
+  for (const node of svgNodes()) {
+    const path = svgPathOf(node);
+    if (!path) continue;
+    try {
+      const st = await svgSource(path, true);
+      const prev = node._cuc.stat;
+      if (!prev || prev.size !== st.size || prev.mtime_ns !== st.mtime_ns) {
+        node._cuc.stat = { size: st.size, mtime_ns: st.mtime_ns };
+        if (prev) svgSchedule(node);  // changed on disk: repaint (a first look happens in renderSvgNode)
+      }
+    } catch (_) { /* the file moved while being saved; the next poll will see it */ }
+  }
+}
+
+app.registerExtension({
+  name: "CrateUtilsComfy.SvgPage",
+  async setup() {
+    setInterval(async () => {
+      if (document.hidden) return;
+      try { await svgPollPending(); } catch (_) { /* server restarting */ }
+      if (svgTick++ % 2) return;
+      try { await svgPollSources(); } catch (_) { /* server restarting */ }
+    }, SVG_POLL_MS);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) svgPollPending().catch(() => {});
+    });
+  },
+  async beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData.name !== SVG_NODE) return;
+    const created = nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated = function () {
+      const r = created?.apply(this, arguments);
+      attachSvg(this);
+      return r;
+    };
+    // Widget values are restored before onConfigure runs, so the picture is drawn from
+    // the saved path here; doing it in onNodeCreated would leave a reloaded node blank.
+    const configured = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function () {
+      const r = configured?.apply(this, arguments);
+      setTimeout(() => svgSchedule(this), 0);
+      return r;
+    };
+    const removed = nodeType.prototype.onRemoved;
+    nodeType.prototype.onRemoved = function () {
+      if (this._cuc) clearTimeout(this._cuc.timer);
+      this._cuc = null;
+      return removed?.apply(this, arguments);
+    };
+  },
+});

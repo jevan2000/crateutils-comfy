@@ -3,6 +3,8 @@ the path policy and web routes."""
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import hmac
 import json
 import logging
@@ -274,6 +276,57 @@ def add_routes() -> None:
 
     r.get("/crateutils-comfy/hook/{hook_id}")(hook)
     r.post("/crateutils-comfy/hook/{hook_id}")(hook)
+
+    # --- SVG page: the source text the node previews, and the PNG the browser draws.
+    # The browser cannot read a file path, so it asks for the text here; the PNG comes
+    # back to the node through the same cache the preview uses. See svgcache.py.
+
+    @r.get("/crateutils-comfy/svg/source")
+    async def svg_source(request):
+        from . import svgcache
+
+        try:
+            f = check_read(request.query.get("path", ""), "SVG path")
+        except (OSError, ValueError) as e:
+            return err(e, 403)
+        if not f.is_file():
+            return err(f"{f} does not exist", 404)
+        if f.suffix.lower() != ".svg":
+            return err("only .svg files can be previewed", 400)
+        try:
+            st = f.stat()
+        except OSError as e:
+            return err(e, 404)
+        if st.st_size > svgcache.MAX_SVG_BYTES:
+            return err(f"{f.name} is too large to preview", 413)
+        if request.query.get("stat"):  # cheap poll: has the file changed?
+            return web.json_response({"size": st.st_size, "mtime_ns": st.st_mtime_ns})
+        try:
+            body = f.read_bytes()
+        except OSError as e:
+            return err(e, 404)
+        return web.json_response({"size": st.st_size, "mtime_ns": st.st_mtime_ns,
+                                  "hash": hashlib.sha256(body).hexdigest(),
+                                  "text": body.decode("utf-8-sig", "replace")})
+
+    @r.get("/crateutils-comfy/svg/pending")
+    async def svg_pending(request):
+        from . import svgcache
+
+        return web.json_response({"requests": svgcache.list_pending()})
+
+    @r.post("/crateutils-comfy/svg/render")
+    async def svg_render(request):
+        from . import svgcache
+
+        try:
+            d = await request.json()
+            key = str(d.get("key", ""))
+            png = base64.b64decode(str(d.get("png", "")), validate=True)
+            path = svgcache.store(key, png)
+        except (ValueError, TypeError) as e:
+            return err(e)
+        return web.json_response({"key": key, "bytes": len(png), "path": str(path)})
 
 
 async def _validate(prompt: dict) -> None:

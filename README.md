@@ -10,6 +10,7 @@ Utility nodes for ComfyUI that run your workflow on their own and save it the wa
 | **Webhook Trigger** | Runs the workflow when a secret URL is called (phone shortcut, Stream Deck, script, bot); what the caller sends comes out as JSON. |
 | **Folder Batch** | Runs the workflow once for every file already in a folder, one at a time, pausable. |
 | **Load Image (Path)** | Loads an image from a path, such as the path a watcher outputs. |
+| **SVG Page (Inkscape)** | Draws one page of an Inkscape `.svg` in the browser, shows it on the node, and outputs it as an image. |
 | **JSON Field** | Picks one value out of JSON, e.g. a webhook's payload. |
 | **Copy / Move Files** | Copies or moves files to another folder: finished exports to a share, a processed input into "done". |
 | **Notify** | A Windows toast, Discord message or ntfy push (with the picture) when the workflow finishes, and when it fails. |
@@ -116,6 +117,34 @@ Press **Start batch**: one run per matching file, sorted by name, oldest or newe
 `max_files`. With `skip_if_busy` on (the default) the next file is queued when the last one
 is done, so Pause stops the batch between files; off queues everything at once. A manual run
 uses the first file.
+
+## SVG Page (Inkscape)
+
+Point it at an Inkscape `.svg` and it draws one page of it in the browser, shows that page on
+the node, and outputs it as `image` and `mask`. `mask` is 1 = transparent, like Load Image;
+`image` is RGB, so transparent areas come out black.
+
+- `page` counts from 1; `page_label` wins when it matches a label in Inkscape's Pages panel
+  (e.g. `Home Page`). These are the document's Inkscape pages, not layers.
+- `width` / `height` in pixels; 0 keeps the page's own size, or the proportions when only one
+  of them is set.
+- `background`: transparent, white, or the page colour Inkscape shows behind the page.
+
+**The browser draws it, on purpose.** Gradients, filters, masks, patterns and text render the
+way Inkscape's SVG engine does in Chrome or Edge, and the picture on the node is the same
+render the node outputs. Two consequences:
+
+- A workflow queued from the ComfyUI tab draws the page before the node runs, so it always
+  uses the current file. A run with **no browser open** (a watcher, a schedule, the API) uses
+  the last picture drawn for that exact file, page and size; when the file has changed since,
+  the node stops and says so rather than outputting a stale page.
+- Saving in Inkscape repaints the node within a couple of seconds.
+
+**Text:** a font that is not installed on the PC running ComfyUI is drawn in a substitute, and
+the node says which ones (`font substituted: Montserrat`). It measures the text to find out,
+because `document.fonts.check()` reports fonts as present when they are not. For exact type,
+use **Text → Object to Path** in Inkscape. Spot colours (`device-cmyk()`) are reported too,
+because the browser falls back to the hex colour beside them.
 
 ## Copy / Move Files
 
