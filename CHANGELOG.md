@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-27)
 
 - New node **SVG Page (Inkscape)**: draws one page of an Inkscape `.svg` in the browser,
   previews it on the node, and outputs `image` plus `mask` (1 = transparent, like Load Image).

@@ -4,4 +4,4 @@ Only the ``nodes_*``, ``comfy_glue`` and ``extension`` modules import ComfyUI, s
 core can be unit-tested on its own.
 """
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"

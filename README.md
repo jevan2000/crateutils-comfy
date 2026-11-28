@@ -19,7 +19,7 @@ Utility nodes for ComfyUI that run your workflow on their own and save it the wa
 Plus the **Triggers** side panel: every armed trigger with pause, fire and disarm, its run
 history, and a CSV log of every triggered run.
 
-Version 0.3.2. Changes are in [CHANGELOG.md](CHANGELOG.md).
+Version 0.4.0. Changes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
