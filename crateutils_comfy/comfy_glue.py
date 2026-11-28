@@ -3,6 +3,7 @@ the path policy and web routes."""
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -327,6 +328,49 @@ def add_routes() -> None:
         except (ValueError, TypeError) as e:
             return err(e)
         return web.json_response({"key": key, "bytes": len(png), "path": str(path)})
+
+    @r.post("/crateutils-comfy/svg/pick")
+    async def svg_pick(request):
+        """Open the native Open dialog on this machine and hand back the path it chose.
+
+        The dialog is the user's, so this grants nothing by itself: the routed path is
+        checked below, and the node checks it again when it reads the file.
+        """
+        from . import desktop
+
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        try:
+            chosen = await asyncio.to_thread(desktop.pick_file, "svg", str((body or {}).get("start_at") or ""))
+        except RuntimeError as e:  # another dialog is open
+            return err(e, 409)
+        except TimeoutError as e:
+            return err(e, 408)
+        except ValueError as e:
+            return err(e, 400 if desktop.available() else 501)
+        if not chosen:
+            return web.json_response({"cancelled": True})
+        try:
+            check_read(chosen, "SVG path")
+            allowed = True
+        except ValueError:
+            allowed = False
+        return web.json_response({"path": chosen, "allowed": allowed, "folder": str(Path(chosen).parent)})
+
+    @r.post("/crateutils-comfy/svg/allow")
+    async def svg_allow(request):
+        """Add the folder the user just picked from to allowed_folders, after they said yes."""
+        from . import desktop
+
+        try:
+            body = await request.json()
+            added = await asyncio.to_thread(desktop.allow_folder, str((body or {}).get("folder") or ""))
+            roots = [str(p) for p in paths.config_roots(user_dir() / "config.json")]
+        except (ValueError, OSError) as e:
+            return err(e)
+        return web.json_response({"added": added, "allowed_folders": roots})
 
 
 async def _validate(prompt: dict) -> None:

@@ -140,6 +140,13 @@ render the node outputs. Two consequences:
   the node stops and says so rather than outputting a stale page.
 - Saving in Inkscape repaints the node within a couple of seconds.
 
+**Picking the file:** **Browse for .svg…** opens the Windows Open dialog on the machine running
+ComfyUI, starting in the current file's folder. (A browser can only hand over the bytes of a file
+you choose, never its path, and this node needs the path so a save in Inkscape repaints it.) If
+you pick from a folder that is not allowed yet, the node asks once and adds that folder to
+`allowed_folders`; nothing else in the config changes. The button is not saved into the workflow,
+so older workflows and the API prompt are unaffected.
+
 **Text:** a font that is not installed on the PC running ComfyUI is drawn in a substitute, and
 the node says which ones (`font substituted: Montserrat`). It measures the text to find out,
 because `document.fonts.check()` reports fonts as present when they are not. For exact type,

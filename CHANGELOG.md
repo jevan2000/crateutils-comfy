@@ -15,7 +15,11 @@
   (pages a queued run is waiting for) and `render` (the PNG the browser drew). They serve only
   files the allowed-folders policy permits and write only into `temp/crateutils-svg`, pruned
   to 300 pages or 30 days.
-- 19 new tests (`tests/test_svg.py`), 83 in total.
+- SVG Page: **Browse for .svg…** opens the Windows Open dialog on the machine running ComfyUI and
+  fills `svg_path` with the real path (a browser file picker cannot supply one). Picking from a
+  folder that is not allowed yet offers to add that folder to `allowed_folders` once, leaving the
+  rest of `config.json` alone. New routes `/crateutils-comfy/svg/pick` and `/svg/allow`.
+- 28 new tests (`tests/test_svg.py`, `tests/test_desktop.py`), 92 in total.
 
 ## 0.3.2 (2026-11-24)
 

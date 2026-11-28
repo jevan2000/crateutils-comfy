@@ -489,6 +489,52 @@ async function renderSvgNode(node) {
   }
 }
 
+async function pickSvg(node) {
+  const c = node._cuc;
+  if (!c || c.picking) return;
+  if (node.inputs?.find((i) => i.name === "svg_path")?.link != null) {
+    return toast("warn", "CrateUtils-Comfy", "svg_path is connected: disconnect it to pick a file");
+  }
+  c.picking = true;
+  const setLabel = (t) => {
+    c.browse.name = t;
+    c.browse.label = t;
+    node.setDirtyCanvas?.(true, true);
+  };
+  setLabel("Waiting for the file dialog…");
+  try {
+    const r = await api.fetchApi("/crateutils-comfy/svg/pick", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ start_at: svgPathOf(node) }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    if (j.cancelled || !j.path) return;
+    if (j.allowed === false) {
+      if (!confirm(`${j.folder} is not in CrateUtils-Comfy's allowed folders. Allow it?`)) {
+        return toast("info", "CrateUtils-Comfy",
+          "Not allowed: add the folder to allowed_folders when you want to use that file");
+      }
+      const a = await api.fetchApi("/crateutils-comfy/svg/allow", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: j.folder }),
+      });
+      const aj = await a.json().catch(() => ({}));
+      if (!a.ok) throw new Error(aj.error || `HTTP ${a.status}`);
+      toast("success", "CrateUtils-Comfy", `Allowed ${j.folder}`);
+    }
+    const w = node.widgets?.find((x) => x.name === "svg_path");
+    w.value = j.path;
+    w.callback?.(j.path);
+    node.setDirtyCanvas?.(true, true);
+  } catch (e) {
+    toast("error", "CrateUtils-Comfy: could not pick a file", String(e.message || e));
+  } finally {
+    c.picking = false;
+    setLabel("Browse for .svg…");
+  }
+}
+
 function attachSvg(node) {
   const el = document.createElement("div");
   el.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;overflow:hidden;"
@@ -503,12 +549,20 @@ function attachSvg(node) {
   img.alt = "";
   el.append(title, warn, img);
 
+  // A normal button widget, so it sits under the inputs and stays out of widgets_values.
+  // It opens the Windows Open dialog on the machine running ComfyUI and returns a real
+  // path: a browser's own file picker only gives bytes, and then saving in Inkscape
+  // would not repaint this node.
+  const browse = node.addWidget("button", "Browse for .svg…", null, () => pickSvg(node));
+  browse.serialize = false;
+
   const widget = node.addDOMWidget("svg_preview", "svg_preview", el, {
     serialize: false, afterResize: () => node.setDirtyCanvas?.(true, true),
   });
   widget.serialize = false;          // not in the workflow JSON (svg_path already is)
   widget.options.serialize = false;  // not in the API prompt
-  node._cuc = { el, img, title, warn, aspect: 0.75, lastKey: "", stat: null, busy: false, again: false, timer: 0 };
+  node._cuc = { el, img, title, warn, browse, picking: false, aspect: 0.75, lastKey: "", stat: null,
+    busy: false, again: false, timer: 0 };
   widget.computeLayoutSize = () => {
     const width = (node.size?.[0] || 320) - 20;
     return { minHeight: Math.max(120, Math.round(width * (node._cuc?.aspect || 0.75)) + 26), minWidth: 160 };
