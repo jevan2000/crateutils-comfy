@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- New node **SVG Page (Inkscape)**: draws one page of an Inkscape `.svg` in the browser,
+  previews it on the node, and outputs `image` plus `mask` (1 = transparent, like Load Image).
+  Page by number or by Inkscape page label, optional width/height, and a transparent, white or
+  page-colour background. Saving in Inkscape repaints the node.
+- The browser is the only renderer, so the preview and the output are the same pixels: a run
+  queued from the ComfyUI tab draws the page before the node executes, and a run with no
+  browser open uses the last render of that exact file, page and size, stopping with a clear
+  message when the file has changed. The node also warns about fonts that are not installed
+  (measured, not asked of `document.fonts.check()`) and about `device-cmyk()` spot colours.
+- New routes under `/crateutils-comfy/svg/`: `source` (the text the node previews), `pending`
+  (pages a queued run is waiting for) and `render` (the PNG the browser drew). They serve only
+  files the allowed-folders policy permits and write only into `temp/crateutils-svg`, pruned
+  to 300 pages or 30 days.
+- SVG Page: **Browse for .svg…** opens the Windows Open dialog on the machine running ComfyUI and
+  fills `svg_path` with the real path (a browser file picker cannot supply one). Picking from a
+  folder that is not allowed yet offers to add that folder to `allowed_folders` once, leaving the
+  rest of `config.json` alone. New routes `/crateutils-comfy/svg/pick` and `/svg/allow`.
+- 28 new tests (`tests/test_svg.py`, `tests/test_desktop.py`), 92 in total.
+
 ## 0.3.2 (2026-11-24)
 
 Fixes from the 2026-11-24 review (64 tests, up from 55):
