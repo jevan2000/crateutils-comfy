@@ -555,6 +555,13 @@ function attachSvg(node) {
   // would not repaint this node.
   const browse = node.addWidget("button", "Browse for .svg…", null, () => pickSvg(node));
   browse.serialize = false;
+  // addWidget appends; move it up so it reads as part of the path box, not as a seventh input.
+  const from = node.widgets.indexOf(browse);
+  const pathAt = node.widgets.findIndex((w) => w.name === "svg_path");
+  if (from > 0 && pathAt >= 0 && from !== pathAt + 1) {
+    node.widgets.splice(from, 1);
+    node.widgets.splice(pathAt + 1, 0, browse);
+  }
 
   const widget = node.addDOMWidget("svg_preview", "svg_preview", el, {
     serialize: false, afterResize: () => node.setDirtyCanvas?.(true, true),
