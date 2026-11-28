@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.1 (2026-11-27)
+
+- SVG Page: the **Browse for .svg…** button now keeps its slot in `widgets_values` on every
+  frontend version. Frontend 1.51 writes a `null` placeholder for a widget marked
+  `serialize = false` while 1.55 omits it, so a workflow saved on one instance shifted
+  `page` / `page_label` / `width` / `height` when opened on the other. The button still stays
+  out of the API prompt (`options.serialize = false`), so ComfyUI never sees it.
+- Checked on both installed instances (0.42.5 with frontend 1.55.18, and 0.34.0 with 1.51.9):
+  identical `widgets_values`, prompt keys unchanged, save/reload restores all six inputs and
+  the preview, and the 7-fixture sweep is 7/7 pixel-identical on both.
+- Also installs on :8191 for the first time (clone of tag `v0.4.0` + this fix).
+
 ## 0.4.0 (2026-11-27)
 
 - New node **SVG Page (Inkscape)**: draws one page of an Inkscape `.svg` in the browser,

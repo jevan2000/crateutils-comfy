@@ -554,7 +554,13 @@ function attachSvg(node) {
   // path: a browser's own file picker only gives bytes, and then saving in Inkscape
   // would not repaint this node.
   const browse = node.addWidget("button", "Browse for .svg…", null, () => pickSvg(node));
-  browse.serialize = false;
+  // Keep the button's slot in widgets_values on every frontend version. 1.51 writes a null
+  // placeholder for a widget with serialize = false and 1.55 omits it entirely, so a workflow
+  // saved on one instance would shift page / size when opened on the other. options.serialize
+  // still keeps it out of the API prompt, so ComfyUI never sees it.
+  browse.serialize = true;
+  browse.options = browse.options || {};
+  browse.options.serialize = false;
   // addWidget appends; move it up so it reads as part of the path box, not as a seventh input.
   const from = node.widgets.indexOf(browse);
   const pathAt = node.widgets.findIndex((w) => w.name === "svg_path");
